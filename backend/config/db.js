@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 
-const DB_URI = process.env.DB_URI;
 
 export const dbConnect = async () => {
+  const DB_URI = process.env.DB_URI;
   if (!DB_URI) {
     console.log(`Database Connection UI is not configured in .env`);
   }
