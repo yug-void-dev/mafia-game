@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { User, Lock, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { signIn as apiSignIn, signUp as apiSignUp } from "../services/authService.js";
 
 /* ─────────────────────────────────────────────────────
    GLOBAL STYLES
@@ -17,10 +18,14 @@ const GlobalStyles = () => (
 
     input:-webkit-autofill,
     input:-webkit-autofill:hover,
-    input:-webkit-autofill:focus {
-      -webkit-text-fill-color: #ddc8c8;
-      -webkit-box-shadow: 0 0 0px 1000px rgba(6,0,0,0.95) inset;
+    input:-webkit-autofill:focus,
+    input:-webkit-autofill:active {
+      -webkit-text-fill-color: #ddc8c8 !important;
+      -webkit-box-shadow: 0 0 0px 9999px #0a0000 inset !important;
+      box-shadow: 0 0 0px 9999px #0a0000 inset !important;
+      background-color: #0a0000 !important;
       caret-color: #ff2222;
+      transition: background-color 99999s ease-in-out 0s;
     }
 
     @keyframes lampSwing {
@@ -339,11 +344,13 @@ const CreateAccountBtn = ({ children, onClick }) => (
    AUTH PAGE
 ───────────────────────────────────────────────────── */
 export default function AuthPage() {
-  const [mode, setMode] = useState("login");    // "login" | "register"
+  const [mode, setMode] = useState("login");
   const [showPass, setShowPass] = useState(false);
   const [showConf, setShowConf] = useState(false);
   const [flicker, setFlicker] = useState(false);
   const [form, setForm] = useState({ email: "", username: "", password: "", confirm: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   /* Random lamp flicker */
   useEffect(() => {
@@ -356,16 +363,40 @@ export default function AuthPage() {
     return () => clearInterval(t);
   }, []);
 
+
+  
   const resetForm = () => setForm({ email: "", username: "", password: "", confirm: "" });
+
+  const handleSubmit = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      if (mode === "login") {
+        const res = await apiSignIn(form.email, form.password);
+        localStorage.setItem("token", res.data.token);
+        alert("Signed in successfully!");
+      } else {
+        await apiSignUp(form.username, form.email, form.password, form.confirm);
+        alert("Account created! Please sign in.");
+        setMode("login");
+        resetForm();
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.message || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
 
   return (
     <>
       <GlobalStyles />
 
       {/* ── BACKGROUND ── */}
-      <motion.div
-        animate={{ opacity: flicker ? 0.6 : 1 }}
-        transition={{ duration: 0.04 }}
+      <div
         style={{
           position: "fixed", inset: 0, zIndex: 0,
           backgroundImage: `url("/mafia_auth_bg.png")`,
@@ -606,9 +637,21 @@ export default function AuthPage() {
               </motion.div>
             </AnimatePresence>
 
-            {/* SIGN IN / CREATE ACCOUNT — primary action */}
-            <SignInBtn onClick={() => console.log("submit", form)}>
-              {mode === "login" ? "SIGN IN" : "CREATE ACCOUNT"}
+            {error && (
+              <p style={{
+                color: "#ff4444",
+                fontSize: 12,
+                fontFamily: "'Special Elite', monospace",
+                letterSpacing: "0.05em",
+                margin: "0 0 8px",
+                textAlign: "center",
+              }}>
+                {error}
+              </p>
+            )}
+
+            <SignInBtn onClick={handleSubmit}>
+              {loading ? "PLEASE WAIT..." : mode === "login" ? "SIGN IN" : "CREATE ACCOUNT"}
             </SignInBtn>
 
             {/* OR separator */}
