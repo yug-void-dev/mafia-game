@@ -20,6 +20,14 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    totalGamesWon: {
+      type: Number,
+      default: 0,
+    },
+    roleGetMaximumTime: {
+      type: String,
+      enum: ["police", "villager", "doctor", "mafia"],
+    },
   },
   {
     timestamps: true,
