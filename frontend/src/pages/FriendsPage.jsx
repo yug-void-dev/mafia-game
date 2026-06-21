@@ -6,11 +6,29 @@ import { UserPlus, UserCheck, UserX, Search, MessageSquare, ShieldAlert, Sparkle
 
 export default function FriendsPage() {
   const [friends, setFriends] = useState([]);
-const [requests, setRequests] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResult, setSearchResult] = useState(null); // null | { name, level, found: boolean }
   const [notification, setNotification] = useState(null);
- const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token");
+  const loadFriends = async () => {
+    try {
+      const res = await axios.get(
+  "http://localhost:5000/api/friends/list",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      console.log("Friends:", res.data);
+      console.log("Friends API:", res.data);
+      setFriends(res.data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
   const loadRequests = async () => {
     try {
       const res = await axios.get(
@@ -32,103 +50,103 @@ const [requests, setRequests] = useState([]);
   // 👇 ADD THIS TOO
   useEffect(() => {
     loadRequests();
-  }, []);
-
-  const handleSearch = async (e) => {
-  e.preventDefault();
-
-  if (!searchQuery.trim()) return;
-
-  try {
-    const res = await axios.get(
-      `http://localhost:5000/api/friends/search/${searchQuery}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (res.data.length === 0) {
-      setSearchResult({
-        found: false,
-        error: "User not found",
-      });
-      return;
-    }
-
-    const user = res.data[0];
-
-    setSearchResult({
-      found: true,
-      _id: user._id,
-      name: user.username,
-    });
-  } catch (err) {
-    console.log(err);
-  }
-};
- const sendRequest = async (targetPlayer) => {
-  try {
-    await axios.post(
-      "http://localhost:5000/api/friends/send",
-      {
-        receiverId: targetPlayer._id,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    showNotification(`Friend request sent to ${targetPlayer.name}!`);
-    setSearchResult(null);
-    setSearchQuery("");
-  } catch (err) {
-    console.log(err);
-  }
-};
-  const acceptRequest = async (id) => {
-  try {
-    await axios.put(
-      `http://localhost:5000/api/friends/accept/${id}`,
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    showNotification("Friend request accepted!");
-
-    loadRequests();
     loadFriends();
-  } catch (err) {
-    console.log(err);
-  }
-};
+  }, []);
+  const handleSearch = async (e) => {
+    e.preventDefault();
+
+    if (!searchQuery.trim()) return;
+
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/api/friends/search/${searchQuery}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (res.data.length === 0) {
+        setSearchResult({
+          found: false,
+          error: "User not found",
+        });
+        return;
+      }
+
+      const user = res.data[0];
+
+      setSearchResult({
+        found: true,
+        _id: user._id,
+        name: user.username,
+      });
+    } catch (err) {
+      console.log(err);
+    }
+  };
+  const sendRequest = async (targetPlayer) => {
+    try {
+      await axios.post(
+        "http://localhost:5000/api/friends/send",
+        {
+          receiverId: targetPlayer._id,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      showNotification(`Friend request sent to ${targetPlayer.name}!`);
+      setSearchResult(null);
+      setSearchQuery("");
+    } catch (err) {
+      console.log(err);
+    }
+  };
+  const acceptRequest = async (id) => {
+    try {
+      await axios.put(
+        `http://localhost:5000/api/friends/accept/${id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      showNotification("Friend request accepted!");
+
+      loadRequests();
+      loadFriends();
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   const declineRequest = async (id) => {
-  try {
-    await axios.put(
-      `http://localhost:5000/api/friends/reject/${id}`,
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    try {
+      await axios.put(
+        `http://localhost:5000/api/friends/reject/${id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-    showNotification("Friend request rejected!");
+      showNotification("Friend request rejected!");
 
-    loadRequests();
-  } catch (err) {
-    console.log(err);
-  }
-};
+      loadRequests();
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   const inviteFriend = (name) => {
     showNotification(`Invited ${name} to your room!`);
@@ -167,7 +185,7 @@ const [requests, setRequests] = useState([]);
       </AnimatePresence>
 
       {/* Page Title */}
-      <motion.div 
+      <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
@@ -238,9 +256,9 @@ const [requests, setRequests] = useState([]);
                     </div>
                     <span style={{ fontSize: 18 }}>🎭</span>
                   </div>
-                  <button 
+                  <button
                     onClick={() => sendRequest(searchResult)}
-                    className="btn-primary" 
+                    className="btn-primary"
                     style={{ width: '100%', padding: '10px', fontSize: 13, gap: 6 }}
                   >
                     <UserPlus size={15} /> SEND REQUEST
@@ -266,7 +284,7 @@ const [requests, setRequests] = useState([]);
 
         {/* RIGHT COLUMN: Incoming Requests & Friends List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          
+
           {/* FRIEND REQUESTS (Incoming) */}
           {requests.length > 0 && (
             <motion.div
@@ -281,17 +299,17 @@ const [requests, setRequests] = useState([]);
                 boxShadow: '0 8px 30px rgba(180,0,20,0.1)',
               }}
             >
-              <h3 style={{ 
+              <h3 style={{
                 fontFamily: 'var(--font-display)', fontSize: 16, letterSpacing: '0.08em', color: '#ff3344',
-                display: 'flex', alignItems: 'center', gap: 8 
+                display: 'flex', alignItems: 'center', gap: 8
               }}>
                 <Sparkles size={16} className="animate-flicker" /> INCOMING REQUESTS ({requests.length})
               </h3>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {requests.map(req => (
-                  <div 
-                  key={req._id}
+                  <div
+                    key={req._id}
                     style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: 8,
@@ -299,23 +317,24 @@ const [requests, setRequests] = useState([]);
                     }}
                   >
                     <div>
-                      <span style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>{req.name}</span>
+                      <span style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>
+                        {req.sender?.username}</span>
                       <span style={{ fontSize: 10.5, color: 'var(--text-muted)', display: 'block' }}>
                         LVL {req.level} · {req.rank}
                       </span>
                     </div>
 
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button 
-                     onClick={() => acceptRequest(req._id)}
-                        className="btn-secondary" 
+                      <button
+                        onClick={() => acceptRequest(req._id)}
+                        className="btn-secondary"
                         style={{ padding: '8px 12px', borderColor: 'rgba(90,200,100,0.4)', color: '#5ad15a' }}
                       >
                         <UserCheck size={14} /> ACCEPT
                       </button>
-                      <button 
+                      <button
                         onClick={() => declineRequest(req._id)}
-                        className="btn-ghost" 
+                        className="btn-ghost"
                         style={{ padding: '8px 12px', color: '#c88a8a', borderColor: 'rgba(200,80,80,0.2)' }}
                       >
                         <UserX size={14} /> DECLINE
@@ -350,7 +369,7 @@ const [requests, setRequests] = useState([]);
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {friends.map(friend => (
-                  <div 
+                  <div
                     key={friend._id}
                     className="friend-row"
                     style={{
@@ -379,26 +398,26 @@ const [requests, setRequests] = useState([]);
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <span style={{ fontWeight: 700, color: friend.online ? '#fff' : 'var(--text-muted)', fontSize: 14 }}>
-                              {friend.name}
+                          {friend.name || friend.username}
                         </span>
                         <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                      Friend
+                          Friend
                         </span>
                       </div>
                     </div>
 
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <span style={{ 
-                        fontSize: 9.5, letterSpacing: '0.06em', 
+                      <span style={{
+                        fontSize: 9.5, letterSpacing: '0.06em',
                         color: friend.online ? '#5ad15a' : 'var(--text-muted)',
                         fontWeight: 700, marginRight: 8
                       }}>
                         {friend.online ? 'ONLINE' : 'OFFLINE'}
                       </span>
                       {friend.online && (
-                        <button 
-                          onClick={() => inviteFriend(friend.name)}
-                          className="btn-secondary" 
+                        <button
+                          onClick={() => inviteFriend(friend.username)}
+                          className="btn-secondary"
                           style={{ padding: '6px 12px', fontSize: 11, border: '1px solid rgba(120,80,180,0.5)' }}
                         >
                           <MessageSquare size={12} /> INVITE
