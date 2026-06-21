@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { User, Lock, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -6,6 +6,7 @@ import {
   signUp as apiSignUp,
 } from "../services/authService.js";
 import { useNavigate } from "react-router-dom";
+import AudioManager from "../services/audio";
 /* ─────────────────────────────────────────────────────
    GLOBAL STYLES
 ───────────────────────────────────────────────────── */
@@ -506,6 +507,13 @@ export default function AuthPage() {
       }
     }, 2400);
     return () => clearInterval(t);
+  }, []);
+
+  /* Stop background wind loop when mounting AuthPage */
+  useEffect(() => {
+    if (AudioManager.initialized) {
+      AudioManager.stopAudioLoops();
+    }
   }, []);
 
   const resetForm = () =>

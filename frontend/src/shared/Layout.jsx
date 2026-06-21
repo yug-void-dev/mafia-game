@@ -6,9 +6,19 @@ import AudioManager from '../services/audio';
 
 export default function Layout() {
   useEffect(() => {
+    // If audio is already initialized (e.g. from previous login session), start loops on mount
+    if (AudioManager.initialized) {
+      AudioManager.startAudioLoops();
+    }
+
     const handleGlobalClick = (e) => {
       // Safely start Tone context on any initial interaction
       AudioManager.init();
+
+      // Ensure loops are playing if initialized
+      if (AudioManager.initialized) {
+        AudioManager.startAudioLoops();
+      }
 
       // Check if target is a button or interactive container
       const target = e.target;

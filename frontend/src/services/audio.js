@@ -30,7 +30,7 @@ class AudioManager {
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch (e) {
+      } catch {
         // fallback
       }
     }
@@ -149,10 +149,26 @@ class AudioManager {
   }
 
   startAudioLoops() {
-    if (this.windNoise && this.windLfo && this.rumbleOsc) {
-      this.windNoise.start();
-      this.windLfo.start();
-      this.rumbleOsc.start();
+    if (this.windNoise && this.windNoise.state !== 'started') {
+      try { this.windNoise.start(); } catch (e) { console.error(e); }
+    }
+    if (this.windLfo && this.windLfo.state !== 'started') {
+      try { this.windLfo.start(); } catch (e) { console.error(e); }
+    }
+    if (this.rumbleOsc && this.rumbleOsc.state !== 'started') {
+      try { this.rumbleOsc.start(); } catch (e) { console.error(e); }
+    }
+  }
+
+  stopAudioLoops() {
+    if (this.windNoise && this.windNoise.state !== 'stopped') {
+      try { this.windNoise.stop(); } catch (e) { console.error(e); }
+    }
+    if (this.windLfo && this.windLfo.state !== 'stopped') {
+      try { this.windLfo.stop(); } catch (e) { console.error(e); }
+    }
+    if (this.rumbleOsc && this.rumbleOsc.state !== 'stopped') {
+      try { this.rumbleOsc.stop(); } catch (e) { console.error(e); }
     }
   }
 
@@ -179,4 +195,7 @@ class AudioManager {
 }
 
 const audioInstance = new AudioManager();
+if (typeof window !== 'undefined') {
+  window.__audioInstance = audioInstance;
+}
 export default audioInstance;
