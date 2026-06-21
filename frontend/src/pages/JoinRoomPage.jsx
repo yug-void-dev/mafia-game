@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Sparkles, LogIn, AlertTriangle, ShieldCheck, MapPin, X, Users } from 'lucide-react';
+import { Search, Sparkles, LogIn, AlertTriangle, ShieldCheck, MapPin, X, Users, RefreshCw } from 'lucide-react';
+import { getRooms } from '../services/roomService.js';
 
 const MAPS = [
   { id: 'all', name: 'All Maps', desc: 'Display rooms from all environments.', icon: '🌍' },
@@ -12,35 +13,42 @@ const MAPS = [
   { id: 'mansion', name: 'Old Mansion', desc: 'Classic gothic dark headquarters.', icon: '🏛️' },
 ];
 
-const INITIAL_ROOMS = [
-  { id: 101, name: 'Viper\'s Hideout', host: 'ViperEye', players: 6, max: 8, status: 'Waiting', mapId: 'village', mode: 'Classic' },
-  { id: 102, name: 'Godfather Assemble', host: 'TheGodfather', players: 9, max: 10, status: 'Waiting', mapId: 'mansion', mode: 'Classic' },
-  { id: 103, name: 'Quick Shot 44', host: 'BulletTracer', players: 3, max: 6, status: 'Waiting', mapId: 'city', mode: 'Quick' },
-  { id: 104, name: 'Midnight Ritual', host: 'Necromancer', players: 5, max: 8, status: 'Waiting', mapId: 'forest', mode: 'Custom' },
-  { id: 105, name: 'High Rollers Only', host: 'CasinoRoyaleHost', players: 7, max: 8, status: 'In Progress', mapId: 'casino', mode: 'Classic' },
-  { id: 106, name: 'Smugglers Cove', host: 'PirateCaptain', players: 4, max: 8, status: 'Waiting', mapId: 'docks', mode: 'Classic' },
-  { id: 107, name: 'Village Witchcraft', host: 'WitchDoctor', players: 2, max: 6, status: 'Waiting', mapId: 'village', mode: 'Quick' },
-];
 
 export default function JoinRoomPage() {
-  const [rooms, setRooms] = useState(INITIAL_ROOMS);
+  const [rooms, setRooms] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMapFilter, setSelectedMapFilter] = useState('all');
   const [matchingOverlay, setMatchingOverlay] = useState(false);
   const [matchedRoom, setMatchedRoom] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
 
-  // Filter Rooms
-  const filteredRooms = useMemo(() => {
-    return rooms.filter(room => {
-      const matchesSearch = 
-        room.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        room.host.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesMap = selectedMapFilter === 'all' || room.mapId === selectedMapFilter;
+  const fetchRooms = useCallback(async () => {
+    setIsLoading(true);
+    setFetchError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const params = {};
+      if (searchQuery) params.search = searchQuery;
+      if (selectedMapFilter !== 'all') params.map = selectedMapFilter;
 
-      return matchesSearch && matchesMap;
-    });
-  }, [rooms, searchQuery, selectedMapFilter]);
+      const response = await getRooms(token, params);
+      setRooms(response.data.rooms || []);
+    } catch (err) {
+      // 404 = no rooms found — treat as empty list
+      if (err?.response?.status === 404) {
+        setRooms([]);
+      } else {
+        setFetchError('Could not load rooms. Check your connection.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchQuery, selectedMapFilter]);
+
+  useEffect(() => {
+    fetchRooms();
+  }, [fetchRooms]);
 
   // Quick Match trigger
   const handleQuickMatch = () => {
@@ -50,10 +58,9 @@ export default function JoinRoomPage() {
     // Simulate search spinner delay
     setTimeout(() => {
       // Find nearest waiting room that is not full
-      const available = filteredRooms.filter(r => r.status === 'Waiting' && r.players < r.max);
+      const available = rooms.filter(r => r.gameState === 'WAITING' && r.users?.length < r.totalPlayers);
       if (available.length > 0) {
-        // Pick the one with highest players to fill faster
-        const bestRoom = [...available].sort((a, b) => b.players - a.players)[0];
+        const bestRoom = [...available].sort((a, b) => (b.users?.length || 0) - (a.users?.length || 0))[0];
         setMatchedRoom(bestRoom);
       } else {
         setMatchedRoom({ error: 'No available rooms found matching filters.' });
@@ -172,27 +179,59 @@ export default function JoinRoomPage() {
               minHeight: 300,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 10, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-              <span>ACTIVE LOBBIES ({filteredRooms.length})</span>
-              <span>FILTER: {MAPS.find(m => m.id === selectedMapFilter)?.name.toUpperCase()}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 10, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+              <span>ACTIVE LOBBIES ({isLoading ? '...' : rooms.length})</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span>FILTER: {MAPS.find(m => m.id === selectedMapFilter)?.name.toUpperCase()}</span>
+                <button
+                  onClick={fetchRooms}
+                  title="Refresh"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                >
+                  <RefreshCw size={13} style={{ animation: isLoading ? 'spin-slow 1s linear infinite' : 'none' }} />
+                </button>
+              </div>
             </div>
 
-            {filteredRooms.length === 0 ? (
+            {/* Loading State */}
+            {isLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[1, 2, 3].map(i => (
+                  <div key={i} style={{ height: 68, borderRadius: 8, background: 'rgba(255,255,255,0.03)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                ))}
+              </div>
+            )}
+
+            {/* Error State */}
+            {!isLoading && fetchError && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center', padding: '40px 0' }}>
+                <AlertTriangle size={28} color="#ff4455" />
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{fetchError}</span>
+                <button onClick={fetchRooms} className="btn-secondary" style={{ fontSize: 12, padding: '8px 20px' }}>RETRY</button>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!isLoading && !fetchError && rooms.length === 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-muted)', padding: '60px 0' }}>
                 <AlertTriangle size={32} color="#cc0020" />
                 <span style={{ fontSize: 13 }}>No active rooms match your filters. Try choosing a different map.</span>
               </div>
-            ) : (
+            )}
+
+            {/* Rooms List */}
+            {!isLoading && !fetchError && rooms.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {filteredRooms.map(room => {
-                  const mapObj = MAPS.find(m => m.id === room.mapId) || { name: 'Old Mansion', icon: '🏛️' };
-                  const isFull = room.players >= room.max;
-                  const isPlaying = room.status === 'In Progress';
+                {rooms.map(room => {
+                  const mapObj = MAPS.find(m => m.id === room.map) || { name: 'Old Mansion', icon: '🏛️' };
+                  const currentPlayers = room.users?.length || 0;
+                  const isFull = currentPlayers >= room.totalPlayers;
+                  const isPlaying = room.gameState !== 'WAITING';
                   const cannotJoin = isFull || isPlaying;
 
                   return (
-                    <div 
-                      key={room.id}
+                    <div
+                      key={room._id}
                       className="room-card"
                       style={{
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -204,13 +243,13 @@ export default function JoinRoomPage() {
                         <span style={{ fontSize: 26 }}>{mapObj.icon}</span>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontWeight: 700, color: '#fff', fontSize: 14.5 }}>{room.name}</span>
+                            <span style={{ fontWeight: 700, color: '#fff', fontSize: 14.5 }}>{room.roomName}</span>
                             <span style={{ fontSize: 9.5, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', padding: '1px 6px', borderRadius: 4, color: 'var(--text-muted)' }}>
-                              {room.mode.toUpperCase()}
+                              {room.contractMode?.toUpperCase()}
                             </span>
                           </div>
                           <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
-                            Host: <strong>{room.host}</strong> · Map: <strong>{mapObj.name}</strong>
+                            Code: <strong>#{room.roomCode}</strong> · Map: <strong>{mapObj.name}</strong>
                           </span>
                         </div>
                       </div>
@@ -218,7 +257,7 @@ export default function JoinRoomPage() {
                       <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: isFull ? '#ff4455' : '#ddd' }}>
                           <Users size={14} color={isFull ? '#ff4455' : '#aaa'} />
-                          {room.players}/{room.max}
+                          {currentPlayers}/{room.totalPlayers}
                         </div>
 
                         <div style={{
@@ -229,10 +268,10 @@ export default function JoinRoomPage() {
                           padding: '3px 8px', borderRadius: 4,
                           minWidth: 84, textAlign: 'center'
                         }}>
-                          {room.status.toUpperCase()}
+                          {isPlaying ? 'IN PROGRESS' : 'WAITING'}
                         </div>
 
-                        <button 
+                        <button
                           className={cannotJoin ? 'btn-ghost' : 'btn-primary'}
                           disabled={cannotJoin}
                           style={{
@@ -351,9 +390,9 @@ export default function JoinRoomPage() {
                     <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: '#5ad15a', marginBottom: 4 }}>
                       TARGET ACQUIRED!
                     </h3>
-                    <span style={{ fontSize: 12.5, color: '#fff', fontWeight: 600 }}>{matchedRoom.name}</span>
+                    <span style={{ fontSize: 12.5, color: '#fff', fontWeight: 600 }}>{matchedRoom.roomName}</span>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginTop: 2 }}>
-                      Host: {matchedRoom.host} · Mode: {matchedRoom.mode}
+                      Code: #{matchedRoom.roomCode} · Mode: {matchedRoom.contractMode}
                     </span>
                   </div>
                   

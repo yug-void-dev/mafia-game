@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Sparkles, MapPin, Eye, EyeOff, Users, Play, Link, Copy, Check } from 'lucide-react';
+import { createRoom } from '../services/roomService.js';
 
 const MAPS = [
   { id: 'city', name: 'City Nights', desc: 'Neon-lit streets, dark alleys, urban crime.', icon: '🏙️', color: '#ff66b2' },
@@ -25,6 +26,8 @@ export default function CreateRoomPage() {
   const [invitedFriends, setInvitedFriends] = useState({}); // { id: boolean }
   const [copiedLink, setCopiedLink] = useState(false);
   const [createdRoomId, setCreatedRoomId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const inviteLink = `https://mafia-mansion.com/join/room-${createdRoomId || '9482'}`;
 
@@ -38,11 +41,38 @@ export default function CreateRoomPage() {
     setInvitedFriends(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleCreateRoom = (e) => {
+  const handleCreateRoom = async (e) => {
     e.preventDefault();
-    // Simulate room creation
-    const randomRoomId = Math.floor(1000 + Math.random() * 9000);
-    setCreatedRoomId(randomRoomId);
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const token = localStorage.getItem("token");
+
+      // Map gameMode to backend contractMode enum value
+      const contractModeMap = { Classic: 'classic', Quick: 'quick', Custom: 'custom' };
+
+      // Generate a unique room code
+      const roomCode = Math.floor(1000 + Math.random() * 9000);
+
+      const response = await createRoom(token, {
+        roomName,
+        totalPlayers: maxPlayers,
+        roomType: isPublic ? 'public' : 'private',
+        map: selectedMap,
+        contractMode: contractModeMap[gameMode],
+        roomCode,
+      });
+
+      if (response.data.success) {
+        setCreatedRoomId(roomCode);
+      }
+    } catch (err) {
+      const message = err?.response?.data?.error || 'Failed to create room. Please try again.';
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -209,13 +239,27 @@ export default function CreateRoomPage() {
                 )}
               </AnimatePresence>
 
+              {/* Error Message */}
+              {error && (
+                <div style={{
+                  background: 'rgba(255,20,40,0.08)',
+                  border: '1px solid rgba(255,20,40,0.3)',
+                  borderRadius: 8, padding: '10px 14px',
+                  fontSize: 12, color: '#ff6677',
+                }}>
+                  ⚠️ {error}
+                </div>
+              )}
+
               {/* Create Button */}
               <button
+                onClick={handleCreateRoom}
                 type="submit"
+                disabled={isLoading}
                 className="btn-primary"
-                style={{ width: '100%', marginTop: 8, height: 50, gap: 10, fontSize: 16 }}
+                style={{ width: '100%', marginTop: 8, height: 50, gap: 10, fontSize: 16, opacity: isLoading ? 0.7 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}
               >
-                <Play size={18} fill="#ff3344" /> CREATE LOBBY
+                <Play size={18} fill="#ff3344" /> {isLoading ? 'CREATING...' : 'CREATE LOBBY'}
               </button>
             </form>
           ) : (

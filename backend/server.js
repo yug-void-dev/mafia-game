@@ -7,6 +7,7 @@ import { dbConnect } from "./config/db.js";
 import authMiddleware from "./middlewares/authMiddleware.js";
 import friendRouter from "./routes/friend.route.js";
 import authRouter from "./routes/authRoute.js";
+import roomRouter from "./routes/roomRouter.js";
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.get("/", (req, res) => {
 
 // Protected routes
 app.use("/api/friends", authMiddleware, friendRouter);
+app.use("/api/room", authMiddleware, roomRouter);
 
 const port = process.env.PORT || 5000;
 
