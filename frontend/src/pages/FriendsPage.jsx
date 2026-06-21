@@ -1,76 +1,134 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserPlus, UserCheck, UserX, Search, MessageSquare, ShieldAlert, Sparkles } from 'lucide-react';
 
-const INITIAL_FRIENDS = [
-  { id: 1, name: 'GhostRider', level: 12, online: true, rank: 'Gold' },
-  { id: 2, name: 'ViperEye', level: 9, online: true, rank: 'Silver' },
-  { id: 3, name: 'SilentNight', level: 5, online: false, rank: 'Bronze' },
-  { id: 4, name: 'CrimsonBlade', level: 15, online: false, rank: 'Diamond' },
-];
-
-const INITIAL_REQUESTS = [
-  { id: 101, name: 'Nightstalker', level: 6, rank: 'Bronze' },
-  { id: 102, name: 'PoisonIvy', level: 8, rank: 'Silver' },
-];
 
 export default function FriendsPage() {
-  const [friends, setFriends] = useState(INITIAL_FRIENDS);
-  const [requests, setRequests] = useState(INITIAL_REQUESTS);
+  const [friends, setFriends] = useState([]);
+const [requests, setRequests] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResult, setSearchResult] = useState(null); // null | { name, level, found: boolean }
   const [notification, setNotification] = useState(null);
+ const token = localStorage.getItem("token");
+  const loadRequests = async () => {
+    try {
+      const res = await axios.get(
+        "http://localhost:5000/api/friends/requests",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-
-    // Simulate search API
-    const name = searchQuery.trim();
-    const alreadyFriend = friends.some(f => f.name.toLowerCase() === name.toLowerCase());
-    const alreadyPending = requests.some(r => r.name.toLowerCase() === name.toLowerCase());
-
-    if (alreadyFriend) {
-      setSearchResult({ name, error: 'Already your friend', found: false });
-    } else if (alreadyPending) {
-      setSearchResult({ name, error: 'Already has a pending request', found: false });
-    } else if (name.toLowerCase() === 'shadow') {
-      setSearchResult({ name, error: 'Cannot add yourself', found: false });
-    } else {
-      // Simulate finding a player
-      setSearchResult({ 
-        name, 
-        level: Math.floor(Math.random() * 15) + 2, 
-        rank: ['Bronze', 'Silver', 'Gold', 'Diamond'][Math.floor(Math.random() * 4)],
-        found: true 
-      });
+      console.log("Requests:", res.data);
+      setRequests(res.data);
+    } catch (err) {
+      console.log(err);
     }
   };
 
-  const sendRequest = (targetPlayer) => {
+  // 👇 ADD THIS TOO
+  useEffect(() => {
+    loadRequests();
+  }, []);
+
+  const handleSearch = async (e) => {
+  e.preventDefault();
+
+  if (!searchQuery.trim()) return;
+
+  try {
+    const res = await axios.get(
+      `http://localhost:5000/api/friends/search/${searchQuery}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (res.data.length === 0) {
+      setSearchResult({
+        found: false,
+        error: "User not found",
+      });
+      return;
+    }
+
+    const user = res.data[0];
+
+    setSearchResult({
+      found: true,
+      _id: user._id,
+      name: user.username,
+    });
+  } catch (err) {
+    console.log(err);
+  }
+};
+ const sendRequest = async (targetPlayer) => {
+  try {
+    await axios.post(
+      "http://localhost:5000/api/friends/send",
+      {
+        receiverId: targetPlayer._id,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
     showNotification(`Friend request sent to ${targetPlayer.name}!`);
     setSearchResult(null);
-    setSearchQuery('');
-  };
+    setSearchQuery("");
+  } catch (err) {
+    console.log(err);
+  }
+};
+  const acceptRequest = async (id) => {
+  try {
+    await axios.put(
+      `http://localhost:5000/api/friends/accept/${id}`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-  const acceptRequest = (id, name) => {
-    setRequests(prev => prev.filter(r => r.id !== id));
-    // Add to friends
-    const newFriend = {
-      id: Date.now(),
-      name,
-      level: Math.floor(Math.random() * 8) + 4,
-      online: true,
-      rank: 'Silver'
-    };
-    setFriends(prev => [newFriend, ...prev]);
-    showNotification(`Accepted ${name}'s request!`);
-  };
+    showNotification("Friend request accepted!");
 
-  const declineRequest = (id, name) => {
-    setRequests(prev => prev.filter(r => r.id !== id));
-    showNotification(`Declined ${name}'s request.`);
-  };
+    loadRequests();
+    loadFriends();
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+  const declineRequest = async (id) => {
+  try {
+    await axios.put(
+      `http://localhost:5000/api/friends/reject/${id}`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    showNotification("Friend request rejected!");
+
+    loadRequests();
+  } catch (err) {
+    console.log(err);
+  }
+};
 
   const inviteFriend = (name) => {
     showNotification(`Invited ${name} to your room!`);
@@ -233,7 +291,7 @@ export default function FriendsPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {requests.map(req => (
                   <div 
-                    key={req.id}
+                  key={req._id}
                     style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: 8,
@@ -249,14 +307,14 @@ export default function FriendsPage() {
 
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button 
-                        onClick={() => acceptRequest(req.id, req.name)}
+                     onClick={() => acceptRequest(req._id)}
                         className="btn-secondary" 
                         style={{ padding: '8px 12px', borderColor: 'rgba(90,200,100,0.4)', color: '#5ad15a' }}
                       >
                         <UserCheck size={14} /> ACCEPT
                       </button>
                       <button 
-                        onClick={() => declineRequest(req.id, req.name)}
+                        onClick={() => declineRequest(req._id)}
                         className="btn-ghost" 
                         style={{ padding: '8px 12px', color: '#c88a8a', borderColor: 'rgba(200,80,80,0.2)' }}
                       >
@@ -293,7 +351,7 @@ export default function FriendsPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {friends.map(friend => (
                   <div 
-                    key={friend.id}
+                    key={friend._id}
                     className="friend-row"
                     style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -321,10 +379,10 @@ export default function FriendsPage() {
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <span style={{ fontWeight: 700, color: friend.online ? '#fff' : 'var(--text-muted)', fontSize: 14 }}>
-                          {friend.name}
+                              {friend.name}
                         </span>
                         <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                          LVL {friend.level} · {friend.rank}
+                      Friend
                         </span>
                       </div>
                     </div>

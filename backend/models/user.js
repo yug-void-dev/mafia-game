@@ -7,23 +7,35 @@ const userSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+
     email: {
       type: String,
       unique: true,
       required: true,
     },
+
     password: {
       type: String,
       required: true,
     },
+
+    friends: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
     totalGamesPlayed: {
       type: Number,
       default: 0,
     },
+
     totalGamesWon: {
       type: Number,
       default: 0,
     },
+
     roleGetMaximumTime: {
       type: String,
       enum: ["police", "villager", "doctor", "mafia"],
@@ -31,7 +43,11 @@ const userSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
-export const User = mongoose.model("User", userSchema);
+const User =
+  mongoose.models.User ||
+  mongoose.model("User", userSchema);
+
+export { User };

@@ -1,11 +1,16 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "/api",
+  baseURL: "http://localhost:5000/api",
 });
 
 export const signIn = (email, password) =>
   api.post("/auth/sign-in", { email, password });
 
 export const signUp = (username, email, password, confirmPassword) =>
-  api.post("/auth/sign-up", { username, email, password, confirmPassword });
+  api.post("/auth/sign-up", {
+    username,
+    email,
+    password,
+    confirmPassword,
+  });
