@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { User, Lock, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { signIn as apiSignIn, signUp as apiSignUp } from "../services/authService.js";
-
+import {
+  signIn as apiSignIn,
+  signUp as apiSignUp,
+} from "../services/authService.js";
+import { useNavigate } from "react-router-dom";
 /* ─────────────────────────────────────────────────────
    GLOBAL STYLES
 ───────────────────────────────────────────────────── */
@@ -73,17 +76,17 @@ const GlobalStyles = () => (
   `}</style>
 );
 
-
-
-
-
-
-
 /* ─────────────────────────────────────────────────────
    LAMP SVG (exactly like reference)
 ───────────────────────────────────────────────────── */
 const Lamp = ({ flicker }) => (
-  <svg width="180" height="210" viewBox="0 0 180 210" xmlns="http://www.w3.org/2000/svg" style={{ overflow: "visible" }}>
+  <svg
+    width="180"
+    height="210"
+    viewBox="0 0 180 210"
+    xmlns="http://www.w3.org/2000/svg"
+    style={{ overflow: "visible" }}
+  >
     <defs>
       <linearGradient id="shadeGrad" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stopColor="#3a3a3a" />
@@ -105,7 +108,13 @@ const Lamp = ({ flicker }) => (
         <stop offset="40%" stopColor="rgba(255,170,50,0.08)" />
         <stop offset="100%" stopColor="rgba(255,110,0,0)" />
       </radialGradient>
-      <filter id="glow"><feGaussianBlur stdDeviation="3" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+      <filter id="glow">
+        <feGaussianBlur stdDeviation="3" result="b" />
+        <feMerge>
+          <feMergeNode in="b" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
     </defs>
 
     {/* Cord */}
@@ -117,8 +126,22 @@ const Lamp = ({ flicker }) => (
     <polygon points="48,70 132,70 112,138 68,138" fill="url(#shadeGrad)" />
     {/* Shade seam lines */}
     <line x1="68" y1="138" x2="48" y2="70" stroke="#0d0d0d" strokeWidth="1.5" />
-    <line x1="112" y1="138" x2="132" y2="70" stroke="#0d0d0d" strokeWidth="1.5" />
-    <line x1="68" y1="138" x2="112" y2="138" stroke="#1a1a1a" strokeWidth="1.8" />
+    <line
+      x1="112"
+      y1="138"
+      x2="132"
+      y2="70"
+      stroke="#0d0d0d"
+      strokeWidth="1.5"
+    />
+    <line
+      x1="68"
+      y1="138"
+      x2="112"
+      y2="138"
+      stroke="#1a1a1a"
+      strokeWidth="1.8"
+    />
     <line x1="48" y1="70" x2="132" y2="70" stroke="#444" strokeWidth="1" />
     {/* Small rivets */}
     <circle cx="60" cy="80" r="2.5" fill="#222" />
@@ -134,7 +157,9 @@ const Lamp = ({ flicker }) => (
 
     {/* Bulb halo */}
     <motion.circle
-      cx="90" cy="142" r="18"
+      cx="90"
+      cy="142"
+      r="18"
       fill="none"
       stroke="rgba(255,220,100,0.12)"
       strokeWidth="12"
@@ -145,20 +170,28 @@ const Lamp = ({ flicker }) => (
 
     {/* Bulb */}
     <motion.circle
-      cx="90" cy="142" r="10"
+      cx="90"
+      cy="142"
+      r="10"
       fill="url(#bulbGrad)"
       filter="url(#glow)"
       className={flicker ? "bulb-flicker" : ""}
       animate={{
         filter: flicker
           ? ["drop-shadow(0 0 3px #ffcc44)", "drop-shadow(0 0 1px #ff9900)"]
-          : ["drop-shadow(0 0 10px #ffee66)", "drop-shadow(0 0 24px #ffcc44)", "drop-shadow(0 0 10px #ffee66)"],
+          : [
+              "drop-shadow(0 0 10px #ffee66)",
+              "drop-shadow(0 0 24px #ffcc44)",
+              "drop-shadow(0 0 10px #ffee66)",
+            ],
       }}
       transition={{ duration: 2, repeat: Infinity }}
     />
     {/* Bright spot */}
     <motion.circle
-      cx="87" cy="138" r="3.5"
+      cx="87"
+      cy="138"
+      r="3.5"
       fill="rgba(255,255,255,0.8)"
       animate={{ opacity: flicker ? [0.3, 0.7, 0.2] : [0.65, 1, 0.7] }}
       transition={{ duration: 1.8, repeat: Infinity }}
@@ -170,48 +203,143 @@ const Lamp = ({ flicker }) => (
    SHIELD / SKULL DIVIDER (matches reference)
 ───────────────────────────────────────────────────── */
 const ShieldDivider = () => (
-  <div style={{ display: "flex", alignItems: "center", width: "100%", margin: "8px 0 14px" }}>
-    <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, rgba(180,10,10,0.7))" }} />
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      width: "100%",
+      margin: "8px 0 14px",
+    }}
+  >
+    <div
+      style={{
+        flex: 1,
+        height: 1,
+        background: "linear-gradient(90deg, transparent, rgba(180,10,10,0.7))",
+      }}
+    />
     <motion.div
-      animate={{ filter: ["drop-shadow(0 0 3px #aa0000)", "drop-shadow(0 0 9px #ff2222)", "drop-shadow(0 0 3px #aa0000)"] }}
+      animate={{
+        filter: [
+          "drop-shadow(0 0 3px #aa0000)",
+          "drop-shadow(0 0 9px #ff2222)",
+          "drop-shadow(0 0 3px #aa0000)",
+        ],
+      }}
       transition={{ duration: 2.5, repeat: Infinity }}
-      style={{ margin: "0 16px", display: "flex", alignItems: "center", justifyContent: "center" }}
+      style={{
+        margin: "0 16px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
     >
-      <svg width="34" height="34" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        width="34"
+        height="34"
+        viewBox="0 0 100 100"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         {/* Shield */}
-        <path d="M50 8 L88 22 V52 C88 74 50 92 50 92 C50 92 12 74 12 52 V22 Z"
-          fill="rgba(6,0,0,0.95)" stroke="#bb0000" strokeWidth="3.5" />
+        <path
+          d="M50 8 L88 22 V52 C88 74 50 92 50 92 C50 92 12 74 12 52 V22 Z"
+          fill="rgba(6,0,0,0.95)"
+          stroke="#bb0000"
+          strokeWidth="3.5"
+        />
         {/* Inner shield line */}
-        <path d="M50 16 L80 28 V50 C80 68 50 83 50 83 C50 83 20 68 20 50 V28 Z"
-          fill="none" stroke="#7a0000" strokeWidth="1.5" />
+        <path
+          d="M50 16 L80 28 V50 C80 68 50 83 50 83 C50 83 20 68 20 50 V28 Z"
+          fill="none"
+          stroke="#7a0000"
+          strokeWidth="1.5"
+        />
         {/* Skull face */}
-        <ellipse cx="50" cy="48" rx="18" ry="17" fill="#cc1111" opacity="0.12" />
+        <ellipse
+          cx="50"
+          cy="48"
+          rx="18"
+          ry="17"
+          fill="#cc1111"
+          opacity="0.12"
+        />
         <circle cx="43" cy="46" r="6" fill="#0c0000" />
         <circle cx="57" cy="46" r="6" fill="#0c0000" />
-        <rect x="43" y="58" width="14" height="12" rx="2" fill="rgba(6,0,0,0.95)" stroke="#bb0000" strokeWidth="1.5" />
-        <line x1="47" y1="58" x2="47" y2="70" stroke="#bb0000" strokeWidth="1.2" />
-        <line x1="50" y1="58" x2="50" y2="70" stroke="#bb0000" strokeWidth="1.2" />
-        <line x1="53" y1="58" x2="53" y2="70" stroke="#bb0000" strokeWidth="1.2" />
+        <rect
+          x="43"
+          y="58"
+          width="14"
+          height="12"
+          rx="2"
+          fill="rgba(6,0,0,0.95)"
+          stroke="#bb0000"
+          strokeWidth="1.5"
+        />
+        <line
+          x1="47"
+          y1="58"
+          x2="47"
+          y2="70"
+          stroke="#bb0000"
+          strokeWidth="1.2"
+        />
+        <line
+          x1="50"
+          y1="58"
+          x2="50"
+          y2="70"
+          stroke="#bb0000"
+          strokeWidth="1.2"
+        />
+        <line
+          x1="53"
+          y1="58"
+          x2="53"
+          y2="70"
+          stroke="#bb0000"
+          strokeWidth="1.2"
+        />
       </svg>
     </motion.div>
-    <div style={{ flex: 1, height: 1, background: "linear-gradient(270deg, transparent, rgba(180,10,10,0.7))" }} />
+    <div
+      style={{
+        flex: 1,
+        height: 1,
+        background: "linear-gradient(270deg, transparent, rgba(180,10,10,0.7))",
+      }}
+    />
   </div>
 );
 
 /* ─────────────────────────────────────────────────────
    INPUT FIELD (matches reference style)
 ───────────────────────────────────────────────────── */
-const Field = ({ icon: Icon, placeholder, type = "text", value, onChange, rightSlot }) => {
+const Field = ({
+  icon: Icon,
+  placeholder,
+  type = "text",
+  value,
+  onChange,
+  rightSlot,
+}) => {
   const [focused, setFocused] = useState(false);
   return (
     <div style={{ position: "relative", marginBottom: 10 }}>
       {/* Left icon */}
-      <div style={{
-        position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
-        color: focused ? "#cc2222" : "#7a2222",
-        transition: "color 0.2s", zIndex: 1,
-        display: "flex", alignItems: "center",
-      }}>
+      <div
+        style={{
+          position: "absolute",
+          left: 14,
+          top: "50%",
+          transform: "translateY(-50%)",
+          color: focused ? "#cc2222" : "#7a2222",
+          transition: "color 0.2s",
+          zIndex: 1,
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
         <Icon size={15} />
       </div>
 
@@ -241,10 +369,16 @@ const Field = ({ icon: Icon, placeholder, type = "text", value, onChange, rightS
 
       {/* Right slot */}
       {rightSlot && (
-        <div style={{
-          position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
-          display: "flex", alignItems: "center",
-        }}>
+        <div
+          style={{
+            position: "absolute",
+            right: 12,
+            top: "50%",
+            transform: "translateY(-50%)",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
           {rightSlot}
         </div>
       )}
@@ -269,9 +403,7 @@ const SignInBtn = ({ children, onClick }) => {
         width: "100%",
         padding: "14px 0",
         marginTop: 8,
-        background: hov
-          ? "rgba(30,2,2,0.95)"
-          : "rgba(10,0,0,0.88)",
+        background: hov ? "rgba(30,2,2,0.95)" : "rgba(10,0,0,0.88)",
         border: "2px solid #dd1515",
         borderRadius: 3,
         color: "#f2f2f2",
@@ -300,9 +432,13 @@ const SignInBtn = ({ children, onClick }) => {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.65, ease: "easeInOut" }}
             style={{
-              position: "absolute", inset: 0, width: "50%",
-              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.11), transparent)",
-              transform: "skewX(-22deg)", pointerEvents: "none",
+              position: "absolute",
+              inset: 0,
+              width: "50%",
+              background:
+                "linear-gradient(90deg, transparent, rgba(255,255,255,0.11), transparent)",
+              transform: "skewX(-22deg)",
+              pointerEvents: "none",
             }}
           />
         )}
@@ -319,7 +455,11 @@ const CreateAccountBtn = ({ children, onClick }) => (
   <motion.button
     id="create-account-btn"
     onClick={onClick}
-    whileHover={{ scale: 1.01, borderColor: "rgba(180,20,20,0.65)", color: "#cc8888" }}
+    whileHover={{
+      scale: 1.01,
+      borderColor: "rgba(180,20,20,0.65)",
+      color: "#cc8888",
+    }}
     whileTap={{ scale: 0.99 }}
     style={{
       width: "100%",
@@ -348,10 +488,15 @@ export default function AuthPage() {
   const [showPass, setShowPass] = useState(false);
   const [showConf, setShowConf] = useState(false);
   const [flicker, setFlicker] = useState(false);
-  const [form, setForm] = useState({ email: "", username: "", password: "", confirm: "" });
+  const [form, setForm] = useState({
+    email: "",
+    username: "",
+    password: "",
+    confirm: "",
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
+  const navigate = useNavigate();
   /* Random lamp flicker */
   useEffect(() => {
     const t = setInterval(() => {
@@ -363,9 +508,8 @@ export default function AuthPage() {
     return () => clearInterval(t);
   }, []);
 
-
-  
-  const resetForm = () => setForm({ email: "", username: "", password: "", confirm: "" });
+  const resetForm = () =>
+    setForm({ email: "", username: "", password: "", confirm: "" });
 
   const handleSubmit = async () => {
     setError("");
@@ -374,7 +518,7 @@ export default function AuthPage() {
       if (mode === "login") {
         const res = await apiSignIn(form.email, form.password);
         localStorage.setItem("token", res.data.token);
-        alert("Signed in successfully!");
+        navigate("/dashboard");
       } else {
         await apiSignUp(form.username, form.email, form.password, form.confirm);
         alert("Account created! Please sign in.");
@@ -382,14 +526,15 @@ export default function AuthPage() {
         resetForm();
       }
     } catch (err) {
-      setError(err.response?.data?.error || err.response?.data?.message || "Something went wrong");
+      setError(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          "Something went wrong",
+      );
     } finally {
       setLoading(false);
     }
   };
-
-
-
 
   return (
     <>
@@ -398,7 +543,9 @@ export default function AuthPage() {
       {/* ── BACKGROUND ── */}
       <div
         style={{
-          position: "fixed", inset: 0, zIndex: 0,
+          position: "fixed",
+          inset: 0,
+          zIndex: 0,
           backgroundImage: `url("/mafia_auth_bg.png")`,
           backgroundSize: "cover",
           backgroundPosition: "center",
@@ -408,56 +555,80 @@ export default function AuthPage() {
       />
 
       {/* ── FILM GRAIN ── */}
-      <div style={{
-        position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none",
-        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E")`,
-        opacity: 0.5,
-      }} />
-
-
-
-
-
-
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 1,
+          pointerEvents: "none",
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E")`,
+          opacity: 0.5,
+        }}
+      />
 
       {/* ── VIGNETTE ── */}
-      <div className="breathe" style={{
-        position: "fixed", inset: 0, zIndex: 4, pointerEvents: "none",
-        background: "radial-gradient(ellipse 88% 88% at 50% 50%, transparent 32%, rgba(0,0,0,0.78) 100%)",
-      }} />
+      <div
+        className="breathe"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 4,
+          pointerEvents: "none",
+          background:
+            "radial-gradient(ellipse 88% 88% at 50% 50%, transparent 32%, rgba(0,0,0,0.78) 100%)",
+        }}
+      />
 
       {/* ── LAMP (swinging) ── */}
-      <div style={{
-        position: "fixed", top: -8, left: "50%",
-        transform: "translateX(-50%)",
-        zIndex: 6, pointerEvents: "none",
-      }}>
+      <div
+        style={{
+          position: "fixed",
+          top: -8,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 6,
+          pointerEvents: "none",
+        }}
+      >
         <div className="lamp-anim">
           <Lamp flicker={flicker} />
         </div>
       </div>
 
       {/* ── MAIN CONTENT ── */}
-      <div style={{
-        position: "fixed", inset: 0, zIndex: 10,
-        display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
-        padding: "0 20px",
-      }}>
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 10,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "0 20px",
+        }}
+      >
         <motion.div
           initial={{ opacity: 0, y: 24, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 1.3, ease: [0.16, 1, 0.3, 1] }}
           style={{
-            width: "100%", maxWidth: 398,
-            display: "flex", flexDirection: "column",
+            width: "100%",
+            maxWidth: 398,
+            display: "flex",
+            flexDirection: "column",
             alignItems: "center",
           }}
         >
-
           {/* ── TITLE BLOCK ── */}
-          <div style={{ textAlign: "center", userSelect: "none", lineHeight: 1, marginBottom: 4 }}>
-
+          <div
+            style={{
+              textAlign: "center",
+              userSelect: "none",
+              lineHeight: 1,
+              marginBottom: 4,
+            }}
+          >
             {/* WELCOME */}
             <motion.p
               initial={{ opacity: 0, y: -10 }}
@@ -469,7 +640,8 @@ export default function AuthPage() {
                 color: "#990e0e",
                 letterSpacing: "0.18em",
                 margin: 0,
-                textShadow: "0 0 10px rgba(200,0,0,0.5), 0 0 22px rgba(150,0,0,0.3)",
+                textShadow:
+                  "0 0 10px rgba(200,0,0,0.5), 0 0 22px rgba(150,0,0,0.3)",
               }}
             >
               WELCOME
@@ -496,7 +668,11 @@ export default function AuthPage() {
             <motion.h1
               initial={{ opacity: 0, scale: 0.88 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.5, duration: 1, ease: [0.34, 1.56, 0.64, 1] }}
+              transition={{
+                delay: 0.5,
+                duration: 1,
+                ease: [0.34, 1.56, 0.64, 1],
+              }}
               style={{
                 fontFamily: "'Creepster', cursive",
                 fontSize: 68,
@@ -563,7 +739,9 @@ export default function AuthPage() {
                       icon={User}
                       placeholder="Username"
                       value={form.username}
-                      onChange={e => setForm({ ...form, username: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, username: e.target.value })
+                      }
                     />
                   </motion.div>
                 )}
@@ -573,7 +751,7 @@ export default function AuthPage() {
                   icon={User}
                   placeholder="Email or Username"
                   value={form.email}
-                  onChange={e => setForm({ ...form, email: e.target.value })}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
 
                 {/* Password */}
@@ -582,19 +760,28 @@ export default function AuthPage() {
                   placeholder="Password"
                   type={showPass ? "text" : "password"}
                   value={form.password}
-                  onChange={e => setForm({ ...form, password: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, password: e.target.value })
+                  }
                   rightSlot={
                     <button
                       type="button"
-                      onClick={() => setShowPass(v => !v)}
+                      onClick={() => setShowPass((v) => !v)}
                       style={{
-                        background: "none", border: "none",
-                        color: "#7a2222", cursor: "pointer",
-                        padding: 0, display: "flex", alignItems: "center",
-                        opacity: 0.8, transition: "opacity 0.2s",
+                        background: "none",
+                        border: "none",
+                        color: "#7a2222",
+                        cursor: "pointer",
+                        padding: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        opacity: 0.8,
+                        transition: "opacity 0.2s",
                       }}
-                      onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                      onMouseLeave={e => e.currentTarget.style.opacity = 0.8}
+                      onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.opacity = 0.8)
+                      }
                     >
                       {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
@@ -614,19 +801,30 @@ export default function AuthPage() {
                       placeholder="Confirm Password"
                       type={showConf ? "text" : "password"}
                       value={form.confirm}
-                      onChange={e => setForm({ ...form, confirm: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, confirm: e.target.value })
+                      }
                       rightSlot={
                         <button
                           type="button"
-                          onClick={() => setShowConf(v => !v)}
+                          onClick={() => setShowConf((v) => !v)}
                           style={{
-                            background: "none", border: "none",
-                            color: "#7a2222", cursor: "pointer",
-                            padding: 0, display: "flex", alignItems: "center",
-                            opacity: 0.8, transition: "opacity 0.2s",
+                            background: "none",
+                            border: "none",
+                            color: "#7a2222",
+                            cursor: "pointer",
+                            padding: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            opacity: 0.8,
+                            transition: "opacity 0.2s",
                           }}
-                          onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                          onMouseLeave={e => e.currentTarget.style.opacity = 0.8}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.opacity = 1)
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.opacity = 0.8)
+                          }
                         >
                           {showConf ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
@@ -638,48 +836,81 @@ export default function AuthPage() {
             </AnimatePresence>
 
             {error && (
-              <p style={{
-                color: "#ff4444",
-                fontSize: 12,
-                fontFamily: "'Special Elite', monospace",
-                letterSpacing: "0.05em",
-                margin: "0 0 8px",
-                textAlign: "center",
-              }}>
+              <p
+                style={{
+                  color: "#ff4444",
+                  fontSize: 12,
+                  fontFamily: "'Special Elite', monospace",
+                  letterSpacing: "0.05em",
+                  margin: "0 0 8px",
+                  textAlign: "center",
+                }}
+              >
                 {error}
               </p>
             )}
 
             <SignInBtn onClick={handleSubmit}>
-              {loading ? "PLEASE WAIT..." : mode === "login" ? "SIGN IN" : "CREATE ACCOUNT"}
+              {loading
+                ? "PLEASE WAIT..."
+                : mode === "login"
+                  ? "SIGN IN"
+                  : "CREATE ACCOUNT"}
             </SignInBtn>
 
             {/* OR separator */}
-            <div style={{ display: "flex", alignItems: "center", margin: "14px 0 10px" }}>
-              <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, rgba(140, 10, 10, 0.45))" }} />
-              <span style={{
-                padding: "0 12px",
-                fontSize: 10,
-                color: "rgba(140, 20, 20, 0.8)",
-                fontFamily: "'Special Elite', monospace",
-                letterSpacing: "0.22em",
-                fontWeight: "bold",
-                textShadow: "0 0 4px rgba(100, 0, 0, 0.5)",
-              }}>OR</span>
-              <div style={{ flex: 1, height: 1, background: "linear-gradient(270deg, transparent, rgba(140, 10, 10, 0.45))" }} />
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                margin: "14px 0 10px",
+              }}
+            >
+              <div
+                style={{
+                  flex: 1,
+                  height: 1,
+                  background:
+                    "linear-gradient(90deg, transparent, rgba(140, 10, 10, 0.45))",
+                }}
+              />
+              <span
+                style={{
+                  padding: "0 12px",
+                  fontSize: 10,
+                  color: "rgba(140, 20, 20, 0.8)",
+                  fontFamily: "'Special Elite', monospace",
+                  letterSpacing: "0.22em",
+                  fontWeight: "bold",
+                  textShadow: "0 0 4px rgba(100, 0, 0, 0.5)",
+                }}
+              >
+                OR
+              </span>
+              <div
+                style={{
+                  flex: 1,
+                  height: 1,
+                  background:
+                    "linear-gradient(270deg, transparent, rgba(140, 10, 10, 0.45))",
+                }}
+              />
             </div>
 
             {/* Secondary — switch mode */}
             <CreateAccountBtn
               onClick={() => {
-                setMode(m => m === "login" ? "register" : "login");
-                setShowPass(false); setShowConf(false); resetForm();
+                setMode((m) => (m === "login" ? "register" : "login"));
+                setShowPass(false);
+                setShowConf(false);
+                resetForm();
               }}
             >
-              {mode === "login" ? "CREATE ACCOUNT" : "ALREADY A MEMBER?  SIGN IN"}
+              {mode === "login"
+                ? "CREATE ACCOUNT"
+                : "ALREADY A MEMBER?  SIGN IN"}
             </CreateAccountBtn>
           </div>
-
         </motion.div>
       </div>
     </>
