@@ -5,8 +5,8 @@ dotenv.config();
 
 import { dbConnect } from "./config/db.js";
 import authMiddleware from "./middlewares/authMiddleware.js";
-import authRouter from "./routes/auth.route.js";
 import friendRouter from "./routes/friend.route.js";
+import authRouter from "./routes/authRoute.js";
 
 const app = express();
 

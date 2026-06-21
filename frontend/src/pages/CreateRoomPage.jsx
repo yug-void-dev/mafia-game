@@ -53,7 +53,7 @@ export default function CreateRoomPage() {
       display: 'flex', flexDirection: 'column', gap: 24,
     }}>
       {/* Page Title */}
-      <motion.div 
+      <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
@@ -109,7 +109,7 @@ export default function CreateRoomPage() {
                   MAX CAPACITY
                 </label>
                 <div style={{ display: 'flex', gap: 12 }}>
-                  {[4, 6, 8, 10].map(num => (
+                  {[6, 8, 10].map(num => (
                     <button
                       key={num}
                       type="button"
@@ -170,7 +170,7 @@ export default function CreateRoomPage() {
                   </div>
                 </div>
 
-                <div 
+                <div
                   className={`toggle-track ${isPublic ? 'on' : ''}`}
                   onClick={() => setIsPublic(!isPublic)}
                 >
@@ -210,7 +210,7 @@ export default function CreateRoomPage() {
               </AnimatePresence>
 
               {/* Create Button */}
-              <button 
+              <button
                 type="submit"
                 className="btn-primary"
                 style={{ width: '100%', marginTop: 8, height: 50, gap: 10, fontSize: 16 }}
@@ -317,9 +317,9 @@ export default function CreateRoomPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 24 }}>{map.icon}</span>
                     {isSelected && (
-                      <span style={{ 
-                        fontSize: 9, background: 'rgba(255,20,40,0.15)', border: '1px solid #ff3344', 
-                        padding: '2px 6px', borderRadius: 4, color: '#ff3344', fontWeight: 900 
+                      <span style={{
+                        fontSize: 9, background: 'rgba(255,20,40,0.15)', border: '1px solid #ff3344',
+                        padding: '2px 6px', borderRadius: 4, color: '#ff3344', fontWeight: 900
                       }}>
                         ACTIVE
                       </span>

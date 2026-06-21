@@ -28,7 +28,6 @@ router.post("/send", async (req, res) => {
       receiver: receiverId,
       status: "pending",
     });
-
     if (existing) {
       return res.status(400).json({
         message: "Request already sent",
@@ -39,7 +38,6 @@ router.post("/send", async (req, res) => {
       sender: req.user._id,
       receiver: receiverId,
     });
-
     res.status(201).json(request);
   } catch (error) {
     res.status(500).json({
@@ -63,10 +61,7 @@ router.get("/requests", async (req, res) => {
 });
 router.put("/accept/:id", async (req, res) => {
   try {
-    const request = await FriendRequest.findById(
-      req.params.id
-    );
-
+    const request = await FriendRequest.findOne({ sender: req.params.id });
     if (!request) {
       return res.status(404).json({
         message: "Request not found",
