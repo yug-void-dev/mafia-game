@@ -1,6 +1,8 @@
 import cors from "cors";
 import express from "express";
 import dotenv from "dotenv";
+import profileRoute from "./routes/profileRoute.js";
+
 dotenv.config();
 
 import { dbConnect } from "./config/db.js";
@@ -11,6 +13,7 @@ import roomRouter from "./routes/roomRouter.js";
 
 const app = express();
 
+app.use("/api/profile", profileRoute);
 app.use(cors());
 
 app.use(express.json());

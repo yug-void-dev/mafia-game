@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
+import axios from "axios";
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ShieldAlert, Upload, Trophy, Star, Target, Shield, 
+import {
+  ShieldAlert, Upload, Trophy, Star, Target, Shield,
   Smile, Swords, Zap, CheckCircle2, AlertTriangle, Eye
 } from 'lucide-react';
 
@@ -36,22 +37,63 @@ export default function ProfilePage() {
     if (saved.length <= 4) return saved; // emoji
     return null;
   });
-  const [tempUsername, setTempUsername] = useState(() => localStorage.getItem('mafia_username') || 'Shadow');
+  const [tempUsername, setTempUsername] =
+    useState("Shadow");
   const [showSavedToast, setShowSavedToast] = useState(false);
   const fileRef = useRef(null);
+  const [profile, setProfile] = useState(null);
 
   // Player mock stats
   const stats = {
-    matchesPlayed: 74,
-    wins: 48,
-    losses: 26,
-    favRole: 'Villager',
-    favRoleDesc: 'You Are The Villager Most of the Time',
-    mafiaKills: 35,
-    trophies: 820, // Silver (500 - 1499)
-  };
+    matchesPlayed:
+      profile?.totalGamesPlayed || 0,
 
-  const winRate = Math.round((stats.wins / stats.matchesPlayed) * 100);
+    wins:
+      profile?.totalGamesWon || 0,
+
+    losses:
+      (profile?.totalGamesPlayed || 0) -
+      (profile?.totalGamesWon || 0),
+
+    mafiaKills:
+      profile?.mafiaKills || 0,
+
+    trophies:
+      profile?.trophies || 0,
+  };
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const userId = localStorage.getItem("userId");
+
+        const res = await axios.get(
+          `http://localhost:5000/api/profile/${userId}`
+        );
+
+        setProfile(res.data.user);
+
+        setTempUsername(res.data.user.username);
+
+        if (res.data.user.avatar) {
+          if (res.data.user.avatar.length > 4) {
+            setAvatar(res.data.user.avatar);
+          } else {
+            setSelectedDefault(res.data.user.avatar);
+          }
+        }
+      } catch (err) {
+        console.log(err);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+  const winRate =
+    stats.matchesPlayed > 0
+      ? Math.round(
+        (stats.wins / stats.matchesPlayed) * 100
+      )
+      : 0;
 
   // Rank Milestones
   // Bronze: 0 - 499, Silver: 500 - 1499, Gold: 1500 - 2999, Diamond: 3000+
@@ -79,22 +121,38 @@ export default function ProfilePage() {
     setSelectedDefault(emoji);
   };
 
-  const handleSaveChanges = () => {
-    // Save to localStorage
-    localStorage.setItem('mafia_username', tempUsername.trim() || 'Shadow');
-    if (selectedDefault) {
-      localStorage.setItem('mafia_avatar', selectedDefault);
-    } else if (avatar) {
-      localStorage.setItem('mafia_avatar', avatar);
-    }
+ const handleSaveChanges = async () => {
+  try {
+    const userId = localStorage.getItem("userId");
 
-    // Trigger update event
-    window.dispatchEvent(new Event('profileUpdate'));
+    await axios.put(
+      `http://localhost:5000/api/profile/${userId}`,
+      {
+        username: tempUsername,
+        avatar: selectedDefault || avatar,
+      }
+    );
 
-    // Show toast
+    // update local state
+    setProfile((prev) => ({
+      ...prev,
+      username: tempUsername,
+      avatar: selectedDefault || avatar,
+    }));
+
+    window.dispatchEvent(new Event("profileUpdate"));
+
     setShowSavedToast(true);
-    setTimeout(() => setShowSavedToast(false), 2500);
-  };
+
+    setTimeout(() => {
+      setShowSavedToast(false);
+    }, 2500);
+
+  } catch (err) {
+    console.error(err);
+  }
+};
+
 
   return (
     <div className="page-scroll" style={{
@@ -125,7 +183,7 @@ export default function ProfilePage() {
       </AnimatePresence>
 
       {/* Page Title */}
-      <motion.div 
+      <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
@@ -173,19 +231,19 @@ export default function ProfilePage() {
           </div>
 
           {/* Upload Button */}
-          <button 
+          <button
             onClick={() => fileRef.current?.click()}
             className="btn-secondary"
             style={{ width: '100%', gap: 8, justifyContent: 'center', border: '1px solid rgba(180,50,80,0.4)' }}
           >
             <Upload size={16} /> UPLOAD CUSTOM
           </button>
-          <input 
-            ref={fileRef} 
-            type="file" 
-            accept="image/*" 
-            onChange={handleAvatarChange} 
-            style={{ display: 'none' }} 
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarChange}
+            style={{ display: 'none' }}
           />
 
           <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.06)' }} />
@@ -206,7 +264,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Save Button */}
-          <button 
+          <button
             onClick={handleSaveChanges}
             className="btn-primary"
             style={{ width: '100%', gap: 8, justifyContent: 'center', marginTop: 4, height: 44 }}
@@ -391,8 +449,8 @@ export default function ProfilePage() {
               {ACHIEVEMENTS.map((ach, i) => {
                 const IconComp = ach.icon;
                 return (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     className="achievement"
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',

@@ -35,6 +35,26 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    coins: {
+  type: Number,
+  default: 0,
+},
+cash: {
+  type: Number,
+  default: 0,
+},
+trophies: {
+  type: Number,
+  default: 0,
+},
+mafiaKills: {
+  type: Number,
+  default: 0,
+},
+avatar: {
+  type: String,
+  default: "avatar1",
+},
 
     roleGetMaximumTime: {
       type: String,
