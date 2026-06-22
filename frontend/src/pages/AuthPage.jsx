@@ -525,7 +525,18 @@ export default function AuthPage() {
     try {
       if (mode === "login") {
         const res = await apiSignIn(form.email, form.password);
-        localStorage.setItem("token", res.data.token);
+        const token = res.data.token;
+        localStorage.setItem("token", token);
+        
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload && payload._id) {
+            localStorage.setItem("userId", payload._id);
+          }
+        } catch (e) {
+          console.error("Failed to decode token", e);
+        }
+        
         navigate("/dashboard");
       } else {
         await apiSignUp(form.username, form.email, form.password, form.confirm);

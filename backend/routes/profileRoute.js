@@ -5,10 +5,11 @@ import {
 } from "../controllers/profileController.js";
 
 import authMiddleware from "../middlewares/authMiddleware.js";
+import { upload } from "../middlewares/uploadMiddleware.js";
 
 const router = express.Router();
 
 router.get("/", authMiddleware, getProfile);
-router.put("/", authMiddleware, updateProfile);
+router.put("/", authMiddleware, upload.single("avatar"), updateProfile);
 
 export default router;

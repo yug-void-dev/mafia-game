@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from "axios";
 import { motion, AnimatePresence } from 'framer-motion';
+import { getUserData } from '../services/userService.js';
 import {
   ShieldAlert, Upload, Trophy, Star, Target, Shield,
   Smile, Swords, Zap, CheckCircle2, AlertTriangle, Eye
@@ -17,33 +18,111 @@ const DEFAULT_AVATARS = [
   { id: '👹', emoji: '👹', label: 'Demon' },
 ];
 
-const ACHIEVEMENTS = [
-  { icon: Swords, title: 'First Blood', desc: 'Eliminate a player in Night 1.', unlocked: true, color: '#ff4444' },
-  { icon: Eye, title: 'Detective Eye', desc: 'Accuse a Mafia member on Day 1.', unlocked: true, color: '#a8d8f0' },
-  { icon: Target, title: 'Silent Killer', desc: 'Win as Mafia without being suspected once.', unlocked: false, color: '#f0c848' },
-  { icon: Shield, title: 'Guardian Angel', desc: 'Save the same target 3 nights in a row.', unlocked: false, color: '#5ad15a' },
-  { icon: Star, title: 'Veteran Spirit', desc: 'Play 50 total matches.', unlocked: true, color: '#b088ff' },
+const ACHIEVEMENTS_CONFIG = [
+  {
+    key: 'first_blood',
+    icon: Swords,
+    title: 'First Blood',
+    desc: 'Eliminate a player in Night 1.',
+    color: '#ff4444',
+    hint: 'Play as Mafia and get the first kill of the night.',
+  },
+  {
+    key: 'detective_eye',
+    icon: Eye,
+    title: 'Detective Eye',
+    desc: 'Correctly accuse a Mafia member on Day 1.',
+    color: '#a8d8f0',
+    hint: 'Point out the Mafia correctly on the very first voting round.',
+  },
+  {
+    key: 'silent_killer',
+    icon: Target,
+    title: 'Silent Killer',
+    desc: 'Win as Mafia without being suspected once.',
+    color: '#f0c848',
+    hint: 'Finish a full match as Mafia with zero accusations.',
+  },
+  {
+    key: 'guardian_angel',
+    icon: Shield,
+    title: 'Guardian Angel',
+    desc: 'Save the same target 3 nights in a row.',
+    color: '#5ad15a',
+    hint: 'As Doctor, protect the same player on 3 consecutive nights.',
+  },
+  {
+    key: 'veteran_spirit',
+    icon: Star,
+    title: 'Veteran Spirit',
+    desc: 'Play 50 total matches.',
+    color: '#b088ff',
+    hint: 'Reach 50 total games played.',
+  },
+  {
+    key: 'serial_winner',
+    icon: Trophy,
+    title: 'Serial Winner',
+    desc: 'Win 10 matches.',
+    color: '#ffd700',
+    hint: 'Accumulate 10 wins across any role.',
+  },
+  {
+    key: 'killing_spree',
+    icon: Swords,
+    title: 'Killing Spree',
+    desc: 'Get 20 Mafia kills.',
+    color: '#ff6633',
+    hint: 'Eliminate 20 players total as Mafia across all matches.',
+  },
 ];
+
+const RANK_CONFIG = [
+  { name: 'Bronze',   min:    0, max:  499,  color: '#cd7f32', icon: '🥉', nextName: 'Silver'  },
+  { name: 'Silver',   min:  500, max: 1499,  color: '#aaa9ad', icon: '🥈', nextName: 'Gold'    },
+  { name: 'Gold',     min: 1500, max: 2999,  color: '#ffd700', icon: '🥇', nextName: 'Diamond' },
+  { name: 'Diamond',  min: 3000, max: 4999,  color: '#a8d8f0', icon: '💎', nextName: 'Master'  },
+  { name: 'Master',   min: 5000, max: 99999, color: '#ff4455', icon: '👑', nextName: 'Master'  },
+];
+function getRank(trophies) {
+  return RANK_CONFIG.find(r => trophies >= r.min && trophies <= r.max) || RANK_CONFIG[0];
+}
+
+const isImageSrc = (val) =>
+  val && (val.startsWith('http://') || val.startsWith('https://') || val.startsWith('data:image/'));
 
 export default function ProfilePage() {
   const [avatar, setAvatar] = useState(() => {
     const saved = localStorage.getItem('mafia_avatar');
-    if (saved && saved.length > 4) return saved; // custom upload (base64)
+    // Return URL or base64 as image src; ignore emoji strings
+    if (saved && isImageSrc(saved)) return saved;
     return null;
   });
   const [selectedDefault, setSelectedDefault] = useState(() => {
     const saved = localStorage.getItem('mafia_avatar');
-    if (!saved) return '🎭';
-    if (saved.length <= 4) return saved; // emoji
-    return null;
+    if (!saved) return '🎭';           // nothing saved → default emoji
+    if (isImageSrc(saved)) return null;  // image → no emoji selected
+    if ([...saved].length <= 2) return saved; // emoji
+    return '🎭';                        // fallback
   });
   const [tempUsername, setTempUsername] =
     useState("Shadow");
   const [showSavedToast, setShowSavedToast] = useState(false);
+  const [rawFile, setRawFile] = useState(null);
   const fileRef = useRef(null);
   const [profile, setProfile] = useState(null);
 
-  // Player mock stats
+  // Player stats mapped from DB
+  const getFavRoleName = (role) => {
+    switch (role) {
+      case 'mafia': return 'The Mastermind (Mafia)';
+      case 'police': return 'The Investigator (Detective)';
+      case 'doctor': return 'The Guardian (Doctor)';
+      case 'villager': return 'The Innocent (Villager)';
+      default: return 'The Unpredictable (All-Rounder)';
+    }
+  };
+
   const stats = {
     matchesPlayed:
       profile?.totalGamesPlayed || 0,
@@ -60,25 +139,50 @@ export default function ProfilePage() {
 
     trophies:
       profile?.trophies || 0,
+
+    favRoleDesc: getFavRoleName(profile?.roleGetMaximumTime),
   };
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const userId = localStorage.getItem("userId");
+        const token = localStorage.getItem("token");
+        let userId = localStorage.getItem("userId");
 
-        const res = await axios.get(
-          `http://localhost:5000/api/profile/${userId}`
-        );
+        if (token && !userId) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            if (payload && payload._id) {
+              userId = payload._id;
+              localStorage.setItem("userId", userId);
+            }
+          } catch (e) {
+            console.error("Failed to decode token in ProfilePage:", e);
+          }
+        }
+
+        if (!token || !userId) return;
+
+        const res = await getUserData(token, userId);
 
         setProfile(res.data.user);
 
         setTempUsername(res.data.user.username);
 
         if (res.data.user.avatar) {
-          if (res.data.user.avatar.length > 4) {
-            setAvatar(res.data.user.avatar);
+          const av = res.data.user.avatar;
+          if (isImageSrc(av)) {
+            // server URL or base64 → show as image
+            setAvatar(av);
+            setSelectedDefault(null);
           } else {
-            setSelectedDefault(res.data.user.avatar);
+            // emoji (length <= 2)
+            if ([...av].length <= 2) {
+              setAvatar(null);
+              setSelectedDefault(av);
+            } else {
+              setAvatar(null);
+              setSelectedDefault('🎭'); // Fallback for invalid emoji / old DB values like "avatar1"
+            }
           }
         }
       } catch (err) {
@@ -95,63 +199,77 @@ export default function ProfilePage() {
       )
       : 0;
 
-  // Rank Milestones
-  // Bronze: 0 - 499, Silver: 500 - 1499, Gold: 1500 - 2999, Diamond: 3000+
-  const currentRankName = 'Silver';
-  const nextRankName = 'Gold';
-  const rankMin = 500;
-  const rankMax = 1500;
-  const rankProgress = stats.trophies - rankMin;
-  const rankTotal = rankMax - rankMin;
-  const progressPct = Math.min(100, Math.round((rankProgress / rankTotal) * 100));
+  // Dynamic rank based on real trophies
+  const currentRank  = getRank(stats.trophies);
+  const currentRankName = currentRank.name;
+  const nextRankName  = currentRank.nextName;
+  const rankMin       = currentRank.min;
+  const rankMax       = currentRank.max;
+  const rankProgress  = Math.max(0, stats.trophies - rankMin);
+  const rankTotal     = rankMax - rankMin || 1;  // avoid divide-by-zero for Master tier
+  const progressPct   = Math.min(100, Math.round((rankProgress / rankTotal) * 100));
 
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setAvatar(reader.result);
-      setSelectedDefault(null);
-    };
-    reader.readAsDataURL(file);
+    setRawFile(file);
+    setAvatar(URL.createObjectURL(file));
+    setSelectedDefault(null);
   };
 
   const handleSelectDefault = (emoji) => {
     setAvatar(null);
+    setRawFile(null);
     setSelectedDefault(emoji);
   };
 
- const handleSaveChanges = async () => {
-  try {
-    const userId = localStorage.getItem("userId");
+  const handleSaveChanges = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
 
-    await axios.put(
-      `http://localhost:5000/api/profile/${userId}`,
-      {
-        username: tempUsername,
-        avatar: selectedDefault || avatar,
+      formData.append("username", tempUsername);
+
+      if (rawFile) {
+        formData.append("avatar", rawFile);
+      } else {
+        formData.append("avatar", selectedDefault || avatar);
       }
-    );
 
-    // update local state
-    setProfile((prev) => ({
-      ...prev,
-      username: tempUsername,
-      avatar: selectedDefault || avatar,
-    }));
+      const res = await axios.put(
+        `http://localhost:5000/api/profile`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-    window.dispatchEvent(new Event("profileUpdate"));
+      // update local state
+      setProfile((prev) => ({
+        ...prev,
+        username: tempUsername,
+        avatar: res.data.user.avatar,
+      }));
 
-    setShowSavedToast(true);
+      // Update local storage so HUD can update
+      localStorage.setItem('mafia_avatar', res.data.user.avatar);
+      localStorage.setItem('mafia_username', tempUsername);
 
-    setTimeout(() => {
-      setShowSavedToast(false);
-    }, 2500);
+      window.dispatchEvent(new Event("profileUpdate"));
 
-  } catch (err) {
-    console.error(err);
-  }
-};
+      setShowSavedToast(true);
+
+      setTimeout(() => {
+        setShowSavedToast(false);
+      }, 2500);
+
+    } catch (err) {
+      console.error("Error saving profile changes:", err);
+    }
+  };
 
 
   return (
@@ -386,11 +504,11 @@ export default function ProfilePage() {
                 <div style={{
                   width: 60, height: 60, borderRadius: '50%',
                   background: 'rgba(255,255,255,0.02)',
-                  border: '2px solid #aaa9ad', // silver
+                  border: `2px solid ${currentRank.color}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 28, boxShadow: '0 0 15px rgba(255,255,255,0.1)',
+                  fontSize: 28, boxShadow: `0 0 15px ${currentRank.color}40`,
                 }}>
-                  🥈
+                  {currentRank.icon}
                 </div>
                 <div>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block' }}>CURRENT LEAGUE</span>
@@ -441,51 +559,63 @@ export default function ProfilePage() {
               border: '1.5px solid rgba(120,40,60,0.25)',
             }}
           >
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, letterSpacing: '0.08em', color: '#ff4455' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, letterSpacing: '0.08em', color: '#ff4455', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               ACHIEVEMENTS & BADGES
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+                {(profile?.achievements || []).length} / {ACHIEVEMENTS_CONFIG.length} UNLOCKED
+              </span>
             </h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {ACHIEVEMENTS.map((ach, i) => {
+              {ACHIEVEMENTS_CONFIG.map((ach, i) => {
                 const IconComp = ach.icon;
+                // unlocked = this key exists in the user's achievements array from DB
+                const unlocked = (profile?.achievements || []).includes(ach.key);
                 return (
                   <div
-                    key={i}
-                    className="achievement"
+                    key={ach.key}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '12px 16px', borderRadius: 8,
-                      background: ach.unlocked ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.01)',
-                      border: ach.unlocked ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(255,255,255,0.02)',
-                      opacity: ach.unlocked ? 1 : 0.45,
+                      background: unlocked ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.01)',
+                      border: unlocked ? `1px solid ${ach.color}22` : '1px solid rgba(255,255,255,0.02)',
+                      opacity: unlocked ? 1 : 0.5,
+                      transition: 'all 0.2s',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                       <div style={{
                         width: 42, height: 42, borderRadius: '50%',
-                        background: ach.unlocked ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.01)',
-                        border: `1.5px solid ${ach.unlocked ? ach.color : 'rgba(255,255,255,0.1)'}`,
+                        background: unlocked ? `${ach.color}12` : 'rgba(255,255,255,0.01)',
+                        border: `1.5px solid ${unlocked ? ach.color : 'rgba(255,255,255,0.1)'}`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: ach.unlocked ? `0 0 10px ${ach.color}33` : 'none',
+                        boxShadow: unlocked ? `0 0 12px ${ach.color}44` : 'none',
+                        flexShrink: 0,
                       }}>
-                        <IconComp size={20} color={ach.unlocked ? ach.color : '#666'} />
+                        <IconComp size={20} color={unlocked ? ach.color : '#555'} />
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span style={{ fontWeight: 700, color: ach.unlocked ? '#fff' : '#888', fontSize: 14 }}>
+                        <span style={{ fontWeight: 700, color: unlocked ? '#fff' : '#777', fontSize: 14 }}>
                           {ach.title}
                         </span>
                         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                           {ach.desc}
                         </span>
+                        {/* Show how-to hint only when locked */}
+                        {!unlocked && (
+                          <span style={{ fontSize: 10, color: '#555', fontStyle: 'italic', marginTop: 1 }}>
+                            💡 {ach.hint}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div>
-                      {ach.unlocked ? (
+                    <div style={{ flexShrink: 0 }}>
+                      {unlocked ? (
                         <span style={{ fontSize: 11, color: '#5ad15a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                           <CheckCircle2 size={12} /> UNLOCKED
                         </span>
                       ) : (
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', fontWeight: 600 }}>
                           LOCKED
                         </span>
                       )}

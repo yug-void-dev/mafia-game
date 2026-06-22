@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { getUserData } from '../services/userService.js';
 
 const RANK_CONFIG = [
   { name: 'Bronze',  min:    0, max:  499, color: '#cd7f32', icon: '🥉' },
@@ -8,20 +9,13 @@ const RANK_CONFIG = [
   { name: 'Diamond', min: 3000, max: 9999, color: '#a8d8f0', icon: '💎' },
 ];
 
-const PLAYER = {
-  name:    'Shadow',
-  level:   7,
-  xp:      340,
-  xpNext:  500,
-  cash:    2450,
-  coins:   890,
-  hearts:  5,
-  trophies:820,
-};
-
 function getRank(trophies) {
   return RANK_CONFIG.find(r => trophies >= r.min && trophies <= r.max) || RANK_CONFIG[0];
 }
+
+// Helper: is this value a renderable image source (server URL or base64)?
+const isImageSrc = (val) =>
+  val && (val.startsWith('http://') || val.startsWith('https://') || val.startsWith('data:image/'));
 
 function GearSVG({ size = 20 }) {
   return (
@@ -37,19 +31,69 @@ export default function HUD() {
   const location = useLocation();
   const [avatar, setAvatar] = useState(() => localStorage.getItem('mafia_avatar') || null);
   const [username, setUsername] = useState(() => localStorage.getItem('mafia_username') || 'Shadow');
+  const [userData, setUserData] = useState(null);
+
+  const fetchUserData = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    let userId = localStorage.getItem('userId');
+
+    // Self-healing: if token exists but userId is not in localStorage, decode it
+    if (token && !userId) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload && payload._id) {
+          userId = payload._id;
+          localStorage.setItem('userId', userId);
+        }
+      } catch (e) {
+        console.error("Failed to decode token in HUD:", e);
+      }
+    }
+
+    if (token && userId) {
+      try {
+        const res = await getUserData(token, userId);
+        if (res.data.success && res.data.user) {
+          setUserData(res.data.user);
+          const u = res.data.user;
+          if (u.avatar) {
+            localStorage.setItem('mafia_avatar', u.avatar);
+            setAvatar(u.avatar);
+          }
+          if (u.username) {
+            localStorage.setItem('mafia_username', u.username);
+            setUsername(u.username);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching HUD user data:", err);
+      }
+    }
+  }, []);
 
   useEffect(() => {
+    fetchUserData();
+
     const handleUpdate = () => {
       setAvatar(localStorage.getItem('mafia_avatar') || null);
       setUsername(localStorage.getItem('mafia_username') || 'Shadow');
+      fetchUserData();
     };
     window.addEventListener('profileUpdate', handleUpdate);
     return () => window.removeEventListener('profileUpdate', handleUpdate);
-  }, []);
+  }, [fetchUserData]);
 
   const fileRef = useRef(null);
-  const rank = getRank(PLAYER.trophies);
-  const xpPct = Math.round((PLAYER.xp / PLAYER.xpNext) * 100);
+
+  const trophies = userData?.trophies !== undefined ? userData.trophies : 0;
+  const cash = userData?.cash !== undefined ? userData.cash : 0;
+  const coins = userData?.coins !== undefined ? userData.coins : 0;
+  const level = userData?.totalGamesPlayed !== undefined ? (Math.floor(userData.totalGamesPlayed / 3) + 1) : 1;
+  const xp = userData?.totalGamesPlayed !== undefined ? ((userData.totalGamesPlayed % 3) * 100) : 0;
+  const xpNext = 500;
+
+  const rank = getRank(trophies);
+  const xpPct = Math.round((xp / xpNext) * 100);
 
   const handleAvatarChange = useCallback((e) => {
     const file = e.target.files?.[0];
@@ -105,9 +149,9 @@ export default function HUD() {
           background: 'linear-gradient(135deg,#1a0a18,#0d0518)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          {avatar && avatar.startsWith('data:')
+          {isImageSrc(avatar)
             ? <img src={avatar} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-            : <span style={{ fontSize: 22 }}>{avatar || '🎭'}</span>
+            : <span style={{ fontSize: 22 }}>{(avatar && [...avatar].length <= 2) ? avatar : '🎭'}</span>
           }
         </div>
         {/* Level badge */}
@@ -120,7 +164,7 @@ export default function HUD() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: '#fff', boxShadow: '0 0 8px rgba(200,0,30,0.6)',
         }}>
-          {PLAYER.level}
+          {level}
         </div>
         <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatarChange} style={{ display:'none' }} />
       </div>
@@ -157,16 +201,16 @@ export default function HUD() {
       <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }}/>
 
       {/* Trophies */}
-      <HudStat icon="🏆" value={PLAYER.trophies} color="#ffd700" />
+      <HudStat icon="🏆" value={trophies} color="#ffd700" />
       <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }}/>
 
       {/* Cash */}
-      <HudStat icon="💵" value={`$${PLAYER.cash.toLocaleString()}`} color="#8fcc55" onPlusClick={() => navigate('/store')} />
+      <HudStat icon="💵" value={`$${cash.toLocaleString()}`} color="#8fcc55" onPlusClick={() => navigate('/store')} />
       {/* Coins */}
-      <HudStat icon="🪙" value={PLAYER.coins} color="#f0c848" onPlusClick={() => navigate('/store')} />
-      
+      <HudStat icon="🪙" value={coins} color="#f0c848" onPlusClick={() => navigate('/store')} />
+
       {/* League Badge (Gamish and Stylish) */}
-      <div 
+      <div
         onClick={() => navigate('/leaderboard')}
         style={{
           display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px',
@@ -177,13 +221,13 @@ export default function HUD() {
           cursor: 'pointer', flexShrink: 0,
           transition: 'all 0.2s',
         }}
-        onMouseEnter={e => { 
-          e.currentTarget.style.transform = 'scale(1.05)'; 
-          e.currentTarget.style.boxShadow = `0 0 18px ${rank.color}77, inset 0 0 10px ${rank.color}33`; 
+        onMouseEnter={e => {
+          e.currentTarget.style.transform = 'scale(1.05)';
+          e.currentTarget.style.boxShadow = `0 0 18px ${rank.color}77, inset 0 0 10px ${rank.color}33`;
         }}
-        onMouseLeave={e => { 
-          e.currentTarget.style.transform = 'scale(1)'; 
-          e.currentTarget.style.boxShadow = `0 0 12px ${rank.color}44, inset 0 0 8px ${rank.color}22`; 
+        onMouseLeave={e => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = `0 0 12px ${rank.color}44, inset 0 0 8px ${rank.color}22`;
         }}
       >
         <span style={{ fontSize: 13 }}>{rank.icon}</span>
@@ -199,7 +243,7 @@ export default function HUD() {
       <div style={{ flex: 1 }} />
 
       {/* Settings */}
-      <button 
+      <button
         onClick={() => navigate('/settings')}
         style={{
           background: 'rgba(10,5,18,0.8)',
@@ -229,7 +273,7 @@ function HudStat({ icon, value, color, onPlusClick }) {
         fontFamily: 'var(--font-display)',
       }}>{value}</span>
       {onPlusClick && (
-        <button 
+        <button
           onClick={onPlusClick}
           style={{
             background: 'rgba(255,255,255,0.06)',
@@ -243,14 +287,14 @@ function HudStat({ icon, value, color, onPlusClick }) {
             lineHeight: 1,
             padding: 0,
           }}
-          onMouseEnter={e => { 
-            e.currentTarget.style.background = 'rgba(255,30,50,0.2)'; 
-            e.currentTarget.style.borderColor = '#ff3344'; 
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'rgba(255,30,50,0.2)';
+            e.currentTarget.style.borderColor = '#ff3344';
             e.currentTarget.style.boxShadow = '0 0 8px rgba(255,30,50,0.5)';
           }}
-          onMouseLeave={e => { 
-            e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; 
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'; 
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
             e.currentTarget.style.boxShadow = 'none';
           }}
         >

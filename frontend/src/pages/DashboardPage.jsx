@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { 
-  Users, Trophy, PlusSquare, LogIn, ShoppingBag, 
+import {
+  Users, Trophy, PlusSquare, LogIn, ShoppingBag,
   BookOpen, Sparkles, X, Sword, Target, Shield, Skull
 } from 'lucide-react';
 
@@ -38,7 +38,7 @@ export default function DashboardPage() {
       color: '#fff',
     }}>
       {/* ── LEFT PANEL: Friends & Leaderboard ── */}
-      <motion.div 
+      <motion.div
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -49,11 +49,11 @@ export default function DashboardPage() {
           zIndex: 20,
         }}
       >
-        <button 
+        <button
           onClick={() => navigate('/friends')}
           className="btn-secondary glass-panel"
           style={{
-            display: 'flex', flexDirection: 'column', 
+            display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
             width: 100, height: 100, gap: 8,
             border: '1.5px solid rgba(120,40,60,0.4)',
@@ -64,11 +64,11 @@ export default function DashboardPage() {
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em' }}>FRIENDS</span>
         </button>
 
-        <button 
+        <button
           onClick={() => navigate('/leaderboard')}
           className="btn-secondary glass-panel"
           style={{
-            display: 'flex', flexDirection: 'column', 
+            display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
             width: 100, height: 100, gap: 8,
             border: '1.5px solid rgba(120,40,60,0.4)',
@@ -79,7 +79,6 @@ export default function DashboardPage() {
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em' }}>RANKINGS</span>
         </button>
       </motion.div>
-
       {/* ── CENTER ACTIONS: Create & Join Room ── */}
       <div style={{
         display: 'flex', gap: 40,
@@ -180,7 +179,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── RIGHT PANEL: Shop, Quests, Skills ── */}
-      <motion.div 
+      <motion.div
         initial={{ x: 100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -191,11 +190,11 @@ export default function DashboardPage() {
           zIndex: 20,
         }}
       >
-        <button 
+        <button
           onClick={() => setActiveModal('shop')}
           className="btn-secondary glass-panel"
           style={{
-            display: 'flex', flexDirection: 'column', 
+            display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
             width: 100, height: 90, gap: 6,
             border: '1.5px solid rgba(80,50,110,0.4)',
@@ -205,11 +204,11 @@ export default function DashboardPage() {
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>MY SHOP</span>
         </button>
 
-        <button 
+        <button
           onClick={() => setActiveModal('quest')}
           className="btn-secondary glass-panel"
           style={{
-            display: 'flex', flexDirection: 'column', 
+            display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
             width: 100, height: 90, gap: 6,
             border: '1.5px solid rgba(80,50,110,0.4)',
@@ -219,11 +218,11 @@ export default function DashboardPage() {
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>QUESTS</span>
         </button>
 
-        <button 
+        <button
           onClick={() => setActiveModal('skills')}
           className="btn-secondary glass-panel"
           style={{
-            display: 'flex', flexDirection: 'column', 
+            display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
             width: 100, height: 90, gap: 6,
             border: '1.5px solid rgba(80,50,110,0.4)',
@@ -264,7 +263,7 @@ export default function DashboardPage() {
               }}
             >
               {/* Close Button */}
-              <button 
+              <button
                 onClick={() => setActiveModal(null)}
                 style={{
                   position: 'absolute', top: 16, right: 16,
@@ -336,9 +335,9 @@ export default function DashboardPage() {
                         <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.desc}</p>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
                           <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow:'hidden' }}>
-                            <div style={{ 
-                              width: item.completed ? '100%' : '66%', height: '100%', 
-                              background: item.completed ? '#5ad15a' : '#cc1122' 
+                            <div style={{
+                              width: item.completed ? '100%' : '66%', height: '100%',
+                              background: item.completed ? '#5ad15a' : '#cc1122'
                             }} />
                           </div>
                           <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{item.progress}</span>

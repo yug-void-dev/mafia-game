@@ -36,25 +36,30 @@ const userSchema = new mongoose.Schema(
       default: 0,
     },
     coins: {
-  type: Number,
-  default: 0,
-},
-cash: {
-  type: Number,
-  default: 0,
-},
-trophies: {
-  type: Number,
-  default: 0,
-},
-mafiaKills: {
-  type: Number,
-  default: 0,
-},
-avatar: {
-  type: String,
-  default: "avatar1",
-},
+      type: Number,
+      default: 0,
+    },
+    cash: {
+      type: Number,
+      default: 0,
+    },
+    trophies: {
+      type: Number,
+      default: 0,
+    },
+    mafiaKills: {
+      type: Number,
+      default: 0,
+    },
+    avatar: {
+      type: String,
+      default: "🎭",
+    },
+
+    achievements: {
+      type: [String],
+      default: [],
+    },
 
     roleGetMaximumTime: {
       type: String,
@@ -63,11 +68,9 @@ avatar: {
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-const User =
-  mongoose.models.User ||
-  mongoose.model("User", userSchema);
+const User = mongoose.models.User || mongoose.model("User", userSchema);
 
 export { User };

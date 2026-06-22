@@ -10,16 +10,17 @@ import authMiddleware from "./middlewares/authMiddleware.js";
 import friendRouter from "./routes/friend.route.js";
 import authRouter from "./routes/authRoute.js";
 import roomRouter from "./routes/roomRouter.js";
+import userRouter from "./routes/userRouter.js";
+import path from "path";
 
 const app = express();
 
-app.use("/api/profile", profileRoute);
 app.use(cors());
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use("/uploads", express.static(path.join(path.resolve(), "uploads")));
+app.use("/api/profile", profileRoute);
 
-// Public routes
 app.use("/api/auth", authRouter);
 
 app.get("/", (req, res) => {
@@ -28,9 +29,9 @@ app.get("/", (req, res) => {
   });
 });
 
-// Protected routes
 app.use("/api/friends", authMiddleware, friendRouter);
 app.use("/api/room", authMiddleware, roomRouter);
+app.use("/api/user", authMiddleware, userRouter);
 
 const port = process.env.PORT || 5000;
 
