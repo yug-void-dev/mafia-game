@@ -1,17 +1,8 @@
 import { motion } from 'framer-motion';
 import { Trophy, HelpCircle, ArrowUp, Star, Award } from 'lucide-react';
+import { useState, useEffect } from "react";
 
-const TOP_PLAYERS = [
-  { rank: 1, name: 'TheGodfather', trophies: 3420, winRate: 78, tier: 'Diamond', avatar: '🕵️', self: false },
-  { rank: 2, name: 'Vendetta', trophies: 3150, winRate: 72, tier: 'Diamond', avatar: '💀', self: false },
-  { rank: 3, name: 'MafiaBoss', trophies: 2950, winRate: 68, tier: 'Gold', avatar: '🧙', self: false },
-  { rank: 4, name: 'Spectre', trophies: 2400, winRate: 64, tier: 'Gold', avatar: '🐺', self: false },
-  { rank: 5, name: 'AgentDark', trophies: 1850, winRate: 61, tier: 'Gold', avatar: '🧛', self: false },
-  { rank: 6, name: 'BlackWidow', trophies: 1600, winRate: 59, tier: 'Gold', avatar: '👹', self: false },
-  { rank: 7, name: 'Shadow', trophies: 820, winRate: 65, tier: 'Silver', avatar: '🎭', self: true },
-  { rank: 8, name: 'Calamity', trophies: 790, winRate: 54, tier: 'Silver', avatar: '🤡', self: false },
-  { rank: 9, name: 'Gravedigger', trophies: 480, winRate: 48, tier: 'Bronze', avatar: '🧟', self: false },
-];
+
 
 const TIERS = [
   { name: 'Diamond', range: '3,000+ 🏆', color: '#a8d8f0', icon: '💎' },
@@ -20,8 +11,43 @@ const TIERS = [
   { name: 'Bronze', range: '0 - 499 🏆', color: '#cd7f32', icon: '🥉' },
 ];
 
+
 export default function LeaderboardPage() {
-  const selfPlayer = TOP_PLAYERS.find(p => p.self);
+  const [players, setPlayers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const selfPlayer = currentUser;
+
+  const getWinRate = (player) => {
+    if (!player?.matchesPlayed) return 0;
+
+    return Math.round(
+      (player.wins / player.matchesPlayed) * 100
+    );
+  };
+
+  const getTier = (trophies) => {
+    if (trophies >= 3000) return "Diamond";
+    if (trophies >= 1500) return "Gold";
+    if (trophies >= 500) return "Silver";
+    return "Bronze";
+  };
+
+  const userId = localStorage.getItem("userId");
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/leaderboard")
+      .then((res) => res.json())
+      .then((data) => {
+        setPlayers(data);
+
+        const loggedInUser = data.find(
+          (p) => p._id === userId
+        );
+
+        setCurrentUser(loggedInUser);
+      })
+      .catch(console.error);
+  }, [userId]);
 
   return (
     <div className="page-scroll" style={{
@@ -32,7 +58,7 @@ export default function LeaderboardPage() {
       position: 'relative',
     }}>
       {/* Page Title */}
-      <motion.div 
+      <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
@@ -96,15 +122,15 @@ export default function LeaderboardPage() {
               border: '1.5px solid rgba(120,40,60,0.25)',
             }}
           >
-            <h3 style={{ 
+            <h3 style={{
               fontFamily: 'var(--font-display)', fontSize: 15, letterSpacing: '0.08em', color: '#ffd700',
               display: 'flex', alignItems: 'center', gap: 8
             }}>
               <HelpCircle size={15} /> TROPHY SYSTEM
             </h3>
-            <ul style={{ 
+            <ul style={{
               fontSize: 11, color: 'var(--text-muted)', lineHeight: '1.5',
-              paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 6 
+              paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 6
             }}>
               <li>🏆 <strong>Victory:</strong> Win a match to earn +20 to +30 trophies based on performance.</li>
               <li>💀 <strong>Defeat:</strong> Losing deducts -10 to -15 trophies.</li>
@@ -138,13 +164,21 @@ export default function LeaderboardPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {TOP_PLAYERS.map((p) => {
-              const rankColor = p.rank === 1 ? '#ffd700' : p.rank === 2 ? '#aaa9ad' : p.rank === 3 ? '#cd7f32' : '#888';
-              const isSelf = p.self;
+            {players.map((p, index) => {
+              console.log(p.username, p.avatar);
+              const isSelf = p._id === selfPlayer?._id;
+              const rankColor =
+                index === 0
+                  ? "#ffd700"
+                  : index === 1
+                    ? "#aaa9ad"
+                    : index === 2
+                      ? "#cd7f32"
+                      : "#888";
 
               return (
                 <div
-                  key={p.rank}
+                  key={p._id}
                   className="lb-row"
                   style={{
                     display: 'grid', gridTemplateColumns: '60px 50px 1fr 120px 100px',
@@ -156,34 +190,56 @@ export default function LeaderboardPage() {
                   }}
                 >
                   {/* Rank position */}
-                  <span style={{ 
+                  <span style={{
                     fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 900, color: rankColor,
                     display: 'flex', alignItems: 'center', gap: 4
                   }}>
-                    {p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `#${p.rank}`}
+                    {index + 1 === 1 ? "🥇"
+                      : index + 1 === 2
+                        ? "🥈"
+                        : index + 1 === 3
+                          ? "🥉"
+                          : `#${index + 1}`}
                   </span>
 
                   {/* Avatar */}
-                  <span style={{ fontSize: 20 }}>{p.avatar}</span>
+                 {p.avatar?.startsWith("http") ? (
+  <img
+    src={p.avatar}
+    alt={p.username}
+    style={{
+      width: 40,
+      height: 40,
+      borderRadius: "50%",
+      objectFit: "cover",
+    }}
+  />
+) : (
+  <span style={{ fontSize: 24 }}>
+    {["🎭", "🧛", "🕵️", "💀", "👹", "🐺", "🤡"].includes(p.avatar)
+      ? p.avatar
+      : "🎭"}
+  </span>
+)}
 
                   {/* Name */}
                   <span style={{ fontWeight: 700, color: isSelf ? '#ff5566' : '#fff', fontSize: 13.5 }}>
-                    {p.name} {isSelf && <span style={{ fontSize: 9.5, background: '#ff3344', padding: '2px 6px', borderRadius: 10, color: '#fff', marginLeft: 6, fontWeight: 900 }}>YOU</span>}
+                    {p.username} {isSelf && <span style={{ fontSize: 9.5, background: '#ff3344', padding: '2px 6px', borderRadius: 10, color: '#fff', marginLeft: 6, fontWeight: 900 }}>YOU</span>}
                   </span>
 
                   {/* Trophies */}
-                  <span style={{ 
-                    fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: '#ffd700', 
-                    textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 
+                  <span style={{
+                    fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: '#ffd700',
+                    textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4
                   }}>
                     🏆 {p.trophies}
                   </span>
 
                   {/* Win rate */}
-                  <span style={{ 
-                    fontSize: 13, fontWeight: 700, color: '#5ad15a', textAlign: 'right' 
+                  <span style={{
+                    fontSize: 13, fontWeight: 700, color: '#5ad15a', textAlign: 'right'
                   }}>
-                    {p.winRate}%
+                    {getWinRate(p)}%
                   </span>
                 </div>
               );
@@ -199,7 +255,7 @@ export default function LeaderboardPage() {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
           style={{
-            position: 'absolute', bottom: 24, left: 40, right: 40,
+            marginTop: 20,
             background: 'linear-gradient(90deg, #1b0005 0%, #2e000a 50%, #1b0005 100%)',
             border: '2px solid var(--blood)',
             borderRadius: 12, padding: '16px 28px', zIndex: 30,
@@ -220,7 +276,10 @@ export default function LeaderboardPage() {
             <div>
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>YOUR STANDING</span>
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: '#ff4455', display: 'flex', alignItems: 'center', gap: 8 }}>
-                Rank #{selfPlayer.rank} · Shadow
+                Rank # {players.findIndex(
+                  player => player._id === selfPlayer?._id
+                ) + 1}
+                · {selfPlayer?.username}
               </h2>
             </div>
           </div>
@@ -228,7 +287,7 @@ export default function LeaderboardPage() {
           <div style={{ display: 'flex', gap: 32 }}>
             <div style={{ textAlign: 'right' }}>
               <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.6)', display: 'block', textTransform: 'uppercase' }}>LEAGUE</span>
-              <span style={{ fontSize: 14, fontWeight: 800, color: '#aaa9ad' }}>SILVER TIER 🥈</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: '#aaa9ad' }}>{getTier(selfPlayer?.trophies)}</span>
             </div>
             <div style={{ textAlign: 'right' }}>
               <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.6)', display: 'block', textTransform: 'uppercase' }}>SCORE</span>
@@ -236,7 +295,7 @@ export default function LeaderboardPage() {
             </div>
             <div style={{ textAlign: 'right' }}>
               <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.6)', display: 'block', textTransform: 'uppercase' }}>WIN RATE</span>
-              <span style={{ fontSize: 14, fontWeight: 800, color: '#5ad15a' }}>{selfPlayer.winRate}%</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: '#5ad15a' }}>{getWinRate(selfPlayer)}%</span>
             </div>
           </div>
         </motion.div>
