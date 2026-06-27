@@ -13,4 +13,8 @@ const getRooms = (token, params = {}) => api.get("/room/rooms", {
   params,
 });
 
-export { createRoom, getRooms }
+const joinRoom = (token, roomId) => api.post(`/room/rooms/${roomId}/join`, {}, {
+  headers: { Authorization: `Bearer ${token}` }
+});
+
+export { createRoom, getRooms, joinRoom }

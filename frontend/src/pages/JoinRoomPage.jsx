@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Sparkles, LogIn, AlertTriangle, ShieldCheck, MapPin, X, Users, RefreshCw } from 'lucide-react';
-import { getRooms } from '../services/roomService.js';
+import { getRooms, joinRoom } from '../services/roomService.js';
+import { useNavigate } from 'react-router-dom';
 
 const MAPS = [
   { id: 'all', name: 'All Maps', desc: 'Display rooms from all environments.', icon: '🌍' },
@@ -22,6 +23,8 @@ export default function JoinRoomPage() {
   const [matchedRoom, setMatchedRoom] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
+  const navigate = useNavigate();
+
 
   const fetchRooms = useCallback(async () => {
     setIsLoading(true);
@@ -50,6 +53,9 @@ export default function JoinRoomPage() {
     fetchRooms();
   }, [fetchRooms]);
 
+
+
+
   // Quick Match trigger
   const handleQuickMatch = () => {
     setMatchingOverlay(true);
@@ -68,6 +74,18 @@ export default function JoinRoomPage() {
     }, 2200);
   };
 
+  const handleConfirmJoin = async (room) => {
+    try {
+      const token = localStorage.getItem('token');
+      await joinRoom(token, room._id);
+      navigate(`/rooms/${room.roomCode}`);
+    } catch (err) {
+      alert('Failed to join room. Please try again.');
+      setMatchingOverlay(false);
+    }
+  };
+
+
   return (
     <div className="page-scroll" style={{
       width: '100%', height: '100%',
@@ -76,7 +94,7 @@ export default function JoinRoomPage() {
       display: 'flex', flexDirection: 'column', gap: 24,
     }}>
       {/* Page Title */}
-      <motion.div 
+      <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
@@ -109,7 +127,7 @@ export default function JoinRoomPage() {
           <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 15, letterSpacing: '0.08em', color: '#ff4455' }}>
             MAP SELECTOR FILTER
           </h3>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {MAPS.map(m => {
               const isSelected = selectedMapFilter === m.id;
@@ -157,9 +175,9 @@ export default function JoinRoomPage() {
                 style={{ paddingLeft: 44, height: 46 }}
               />
             </div>
-            <button 
+            <button
               onClick={handleQuickMatch}
-              className="btn-primary" 
+              className="btn-primary"
               style={{ gap: 8, padding: '0 24px', flexShrink: 0, height: 46 }}
             >
               <Sparkles size={16} /> QUICK MATCH
@@ -272,6 +290,7 @@ export default function JoinRoomPage() {
                         </div>
 
                         <button
+                          onClick={() => handleConfirmJoin(room)}
                           className={cannotJoin ? 'btn-ghost' : 'btn-primary'}
                           disabled={cannotJoin}
                           style={{
@@ -321,7 +340,7 @@ export default function JoinRoomPage() {
               }}
             >
               {/* Close scanner */}
-              <button 
+              <button
                 onClick={() => setMatchingOverlay(false)}
                 style={{
                   position: 'absolute', top: 16, right: 16,
@@ -335,7 +354,7 @@ export default function JoinRoomPage() {
               {!matchedRoom ? (
                 <>
                   {/* Matching radar animation */}
-                  <div style={{ position: 'relative', width: 90, height: 90, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <div style={{ position: 'relative', width: 90, height: 90, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{
                       position: 'absolute', inset: 0, borderRadius: '50%',
                       border: '2.5px dashed #ff3344',
@@ -395,12 +414,12 @@ export default function JoinRoomPage() {
                       Code: #{matchedRoom.roomCode} · Mode: {matchedRoom.contractMode}
                     </span>
                   </div>
-                  
+
                   <div style={{ display: 'flex', gap: 12, width: '100%', marginTop: 8 }}>
                     <button onClick={() => setMatchingOverlay(false)} className="btn-secondary" style={{ flex: 1 }}>
                       CANCEL
                     </button>
-                    <button className="btn-primary" style={{ flex: 1, padding: '10px 16px' }}>
+                    <button onClick={() => handleConfirmJoin(matchedRoom)} className="btn-primary" style={{ flex: 1, padding: '10px 16px' }}>
                       CONNECT
                     </button>
                   </div>

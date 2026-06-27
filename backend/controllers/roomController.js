@@ -22,10 +22,12 @@ export const createRoom = async (req, res) => {
 
     //& added room info into DB
     await Room.create({
+      host: req.user._id,
       roomName: roomName,
       totalPlayers: totalPlayers,
       roomType: roomType,
       map: map,
+      users: [req.user._id],
       contractMode: contractMode,
       mafiaCount: mafiaCount,
       roomCode: roomCode,
@@ -76,3 +78,40 @@ export const getRooms = async (req, res) => {
     });
   }
 };
+
+export const joinRoom = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const room = await Room.findById(roomId);
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        error: "Room not found",
+      });
+    }
+    if (room.users.length >= room.totalPlayers) {
+      return res.status(400).json({
+        success: false,
+        error: "Room is full",
+      });
+    }
+    if (room.users.some(userId => userId.toString() === req.user._id.toString())) {
+      return res.status(400).json({
+        success: false,
+        error: "You are already in the room",
+      });
+    }
+    room.users.push(req.user._id);
+    await room.save();
+    return res.status(200).json({
+      success: true,
+      message: "Joined room successfully",
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+    });
+  }
+}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Sparkles, MapPin, Eye, EyeOff, Users, Play, Link, Copy, Check } from 'lucide-react';
 import { createRoom } from '../services/roomService.js';
+import { useNavigate } from 'react-router-dom';
 
 const MAPS = [
   { id: 'city', name: 'City Nights', desc: 'Neon-lit streets, dark alleys, urban crime.', icon: '🏙️', color: '#ff66b2' },
@@ -28,7 +29,7 @@ export default function CreateRoomPage() {
   const [createdRoomId, setCreatedRoomId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-
+  const navigate = useNavigate();
   const inviteLink = `https://mafia-mansion.com/join/room-${createdRoomId || '9482'}`;
 
   const handleCopyLink = () => {
@@ -74,6 +75,8 @@ export default function CreateRoomPage() {
       setIsLoading(false);
     }
   };
+
+
 
   return (
     <div className="page-scroll" style={{
@@ -289,7 +292,7 @@ export default function CreateRoomPage() {
               </div>
 
               {/* Link Box */}
-              <div style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: 14, display:'flex', flexDirection:'column', gap: 8 }}>
+              <div style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>INVITATION LINK</span>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 6, width: '100%' }}>
                   <Link size={14} color="#ff3344" style={{ flexShrink: 0 }} />
@@ -309,7 +312,7 @@ export default function CreateRoomPage() {
                 <button onClick={() => setCreatedRoomId(null)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>
                   CONFIGURE NEW
                 </button>
-                <button className="btn-primary" style={{ flex: 1, justifyContent: 'center', padding: '10px 16px' }}>
+                <button onClick={() => navigate(`/rooms/${createdRoomId}`)} className="btn-primary" style={{ flex: 1, justifyContent: 'center', padding: '10px 16px' }}>
                   LAUNCH GAME
                 </button>
               </div>
@@ -329,7 +332,7 @@ export default function CreateRoomPage() {
             border: '1.5px solid rgba(120,40,60,0.25)',
           }}
         >
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, letterSpacing: '0.08em', color: '#ff4455' }}>
               SELECT ENVIROMENT MAP
             </h3>
