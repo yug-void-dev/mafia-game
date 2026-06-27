@@ -312,7 +312,7 @@ export default function CreateRoomPage() {
                 <button onClick={() => setCreatedRoomId(null)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>
                   CONFIGURE NEW
                 </button>
-                <button onClick={() => navigate(`/rooms/${createdRoomId}`)} className="btn-primary" style={{ flex: 1, justifyContent: 'center', padding: '10px 16px' }}>
+                <button  onClick={() => navigate(`/loading/${createdRoomId}`)} className="btn-primary" style={{ flex: 1, justifyContent: 'center', padding: '10px 16px' }}>
                   LAUNCH GAME
                 </button>
               </div>

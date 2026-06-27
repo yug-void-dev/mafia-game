@@ -203,24 +203,24 @@ export default function LeaderboardPage() {
                   </span>
 
                   {/* Avatar */}
-                 {p.avatar?.startsWith("http") ? (
-  <img
-    src={p.avatar}
-    alt={p.username}
-    style={{
-      width: 40,
-      height: 40,
-      borderRadius: "50%",
-      objectFit: "cover",
-    }}
-  />
-) : (
-  <span style={{ fontSize: 24 }}>
-    {["🎭", "🧛", "🕵️", "💀", "👹", "🐺", "🤡"].includes(p.avatar)
-      ? p.avatar
-      : "🎭"}
-  </span>
-)}
+                  {p.avatar?.startsWith("http") ? (
+                    <img
+                      src={p.avatar}
+                      alt={p.username}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: "50%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 24 }}>
+                      {["🎭", "🧛", "🕵️", "💀", "👹", "🐺", "🤡"].includes(p.avatar)
+                        ? p.avatar
+                        : "🎭"}
+                    </span>
+                  )}
 
                   {/* Name */}
                   <span style={{ fontWeight: 700, color: isSelf ? '#ff5566' : '#fff', fontSize: 13.5 }}>
