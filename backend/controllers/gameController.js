@@ -36,18 +36,3 @@ export const finishGame = async (req, res) => {
     });
   }
 };
-await axios.post(
-  "http://localhost:5000/api/game/finish",
-  {
-    userId,
-    won: true,
-    mafiaKills: 2,
-  }
-);
-await axios.put(
-  "http://localhost:5000/api/profile",
-  {
-    username,
-    avatar,
-  }
-);

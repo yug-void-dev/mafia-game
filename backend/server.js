@@ -2,7 +2,7 @@ import cors from "cors";
 import express from "express";
 import dotenv from "dotenv";
 import profileRoute from "./routes/profileRoute.js";
-import leaderboardRoute from "./routes/leaderboardRoute.js";
+import leaderboardRoute from "./routes/LeaderboardRoute.js";
 dotenv.config();
 
 import { dbConnect } from "./config/db.js";

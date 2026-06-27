@@ -7,6 +7,7 @@ import FriendsPage from "./pages/FriendsPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import CreateRoomPage from "./pages/CreateRoomPage";
 import JoinRoomPage from "./pages/JoinRoomPage";
+import RoomLobbyPage from "./pages/RoomLobbyPage";
 import StorePage from "./pages/StorePage";
 import SettingsPage from "./pages/SettingsPage";
 import AuthPage from "./pages/AuthPage";
@@ -28,8 +29,10 @@ export default function App() {
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/create-room" element={<CreateRoomPage />} />
           <Route path="/join-room" element={<JoinRoomPage />} />
+          <Route path="/lobby/:roomId" element={<RoomLobbyPage />} />
           <Route path="/store" element={<StorePage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -9,7 +9,7 @@ const MAPS = [
   { id: 'city', name: 'City Nights', desc: 'Neon-lit alleys and urban crime.', icon: '🏙️' },
   { id: 'village', name: 'Cursed Village', desc: 'Foggy hamlet with dark secret spells.', icon: '🏘️' },
   { id: 'forest', name: 'Dark Forest', desc: 'Dense spooky woods with no escape.', icon: '🌲' },
-  { id: 'docks', name: 'Harbor Docks', desc: 'Mist waterfront and pirate docks.', icon: '⚓' },
+  { id: 'harbor', name: 'Harbor Docks', desc: 'Mist waterfront and pirate docks.', icon: '⚓' },
   { id: 'casino', name: 'Casino Royale', desc: 'Underground high-stakes gambling.', icon: '🎰' },
   { id: 'mansion', name: 'Old Mansion', desc: 'Classic gothic dark headquarters.', icon: '🏛️' },
 ];
@@ -23,6 +23,8 @@ export default function JoinRoomPage() {
   const [matchedRoom, setMatchedRoom] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
+  const [joinError, setJoinError] = useState(null);
+  const [joiningRoomId, setJoiningRoomId] = useState(null);
   const navigate = useNavigate();
 
 
@@ -75,13 +77,20 @@ export default function JoinRoomPage() {
   };
 
   const handleConfirmJoin = async (room) => {
+    setJoinError(null);
+    setJoiningRoomId(room._id);
     try {
       const token = localStorage.getItem('token');
-      await joinRoom(token, room._id);
-      navigate(`/rooms/${room.roomCode}`);
+      const response = await joinRoom(token, room._id);
+      const joinedRoom = response.data.room;
+      // Navigate to lobby using the room's MongoDB _id
+      navigate(`/lobby/${joinedRoom._id}`);
     } catch (err) {
-      alert('Failed to join room. Please try again.');
+      const message = err?.response?.data?.error || 'Failed to join room. Please try again.';
+      setJoinError({ roomId: room._id, message });
       setMatchingOverlay(false);
+    } finally {
+      setJoiningRoomId(null);
     }
   };
 
@@ -237,7 +246,6 @@ export default function JoinRoomPage() {
               </div>
             )}
 
-            {/* Rooms List */}
             {!isLoading && !fetchError && rooms.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {rooms.map(room => {
@@ -246,61 +254,85 @@ export default function JoinRoomPage() {
                   const isFull = currentPlayers >= room.totalPlayers;
                   const isPlaying = room.gameState !== 'WAITING';
                   const cannotJoin = isFull || isPlaying;
+                  const isJoiningThis = joiningRoomId === room._id;
+                  const thisRoomError = joinError?.roomId === room._id ? joinError.message : null;
 
                   return (
-                    <div
-                      key={room._id}
-                      className="room-card"
-                      style={{
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        padding: '14px 20px', background: 'rgba(255,255,255,0.02)',
-                        opacity: cannotJoin ? 0.6 : 1,
-                      }}
-                    >
-                      <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                        <span style={{ fontSize: 26 }}>{mapObj.icon}</span>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontWeight: 700, color: '#fff', fontSize: 14.5 }}>{room.roomName}</span>
-                            <span style={{ fontSize: 9.5, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', padding: '1px 6px', borderRadius: 4, color: 'var(--text-muted)' }}>
-                              {room.contractMode?.toUpperCase()}
+                    <div key={room._id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div
+                        className="room-card"
+                        style={{
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          padding: '14px 20px', background: 'rgba(255,255,255,0.02)',
+                          opacity: cannotJoin ? 0.6 : 1,
+                        }}
+                      >
+                        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                          <span style={{ fontSize: 26 }}>{mapObj.icon}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontWeight: 700, color: '#fff', fontSize: 14.5 }}>{room.roomName}</span>
+                              <span style={{ fontSize: 9.5, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', padding: '1px 6px', borderRadius: 4, color: 'var(--text-muted)' }}>
+                                {room.contractMode?.toUpperCase()}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                              Code: <strong>#{room.roomCode}</strong> · Map: <strong>{mapObj.name}</strong>
                             </span>
                           </div>
-                          <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
-                            Code: <strong>#{room.roomCode}</strong> · Map: <strong>{mapObj.name}</strong>
-                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: isFull ? '#ff4455' : '#ddd' }}>
+                            <Users size={14} color={isFull ? '#ff4455' : '#aaa'} />
+                            {currentPlayers}/{room.totalPlayers}
+                          </div>
+
+                          <div style={{
+                            fontSize: 10, fontWeight: 700, letterSpacing: '0.05em',
+                            color: isPlaying ? '#ff4455' : '#5ad15a',
+                            background: isPlaying ? 'rgba(255,20,40,0.08)' : 'rgba(90,200,100,0.08)',
+                            border: `1px solid ${isPlaying ? 'rgba(255,20,40,0.2)' : 'rgba(90,200,100,0.2)'}`,
+                            padding: '3px 8px', borderRadius: 4,
+                            minWidth: 84, textAlign: 'center'
+                          }}>
+                            {isPlaying ? 'IN PROGRESS' : 'WAITING'}
+                          </div>
+
+                          <button
+                            onClick={() => handleConfirmJoin(room)}
+                            className={cannotJoin ? 'btn-ghost' : 'btn-primary'}
+                            disabled={cannotJoin || isJoiningThis}
+                            style={{
+                              padding: '8px 16px', fontSize: 12, height: 36, minWidth: 80,
+                              border: cannotJoin ? '1px solid rgba(255,255,255,0.05)' : '1.5px solid var(--blood)',
+                              opacity: isJoiningThis ? 0.75 : 1,
+                              cursor: isJoiningThis ? 'not-allowed' : undefined,
+                            }}
+                          >
+                            {isJoiningThis
+                              ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{ width: 12, height: 12, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin-slow 0.7s linear infinite' }} />
+                                  JOINING
+                                </span>
+                              : <><LogIn size={13} /> JOIN</>
+                            }
+                          </button>
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: isFull ? '#ff4455' : '#ddd' }}>
-                          <Users size={14} color={isFull ? '#ff4455' : '#aaa'} />
-                          {currentPlayers}/{room.totalPlayers}
-                        </div>
-
+                      {/* Inline error for this specific room */}
+                      {thisRoomError && (
                         <div style={{
-                          fontSize: 10, fontWeight: 700, letterSpacing: '0.05em',
-                          color: isPlaying ? '#ff4455' : '#5ad15a',
-                          background: isPlaying ? 'rgba(255,20,40,0.08)' : 'rgba(90,200,100,0.08)',
-                          border: `1px solid ${isPlaying ? 'rgba(255,20,40,0.2)' : 'rgba(90,200,100,0.2)'}`,
-                          padding: '3px 8px', borderRadius: 4,
-                          minWidth: 84, textAlign: 'center'
+                          fontSize: 11.5, color: '#ff6677',
+                          background: 'rgba(255,20,40,0.06)',
+                          border: '1px solid rgba(255,20,40,0.2)',
+                          borderRadius: 6, padding: '7px 14px',
+                          display: 'flex', alignItems: 'center', gap: 8,
                         }}>
-                          {isPlaying ? 'IN PROGRESS' : 'WAITING'}
+                          <AlertTriangle size={13} /> {thisRoomError}
                         </div>
-
-                        <button
-                          onClick={() => handleConfirmJoin(room)}
-                          className={cannotJoin ? 'btn-ghost' : 'btn-primary'}
-                          disabled={cannotJoin}
-                          style={{
-                            padding: '8px 16px', fontSize: 12, height: 36,
-                            border: cannotJoin ? '1px solid rgba(255,255,255,0.05)' : '1.5px solid var(--blood)',
-                          }}
-                        >
-                          <LogIn size={13} /> JOIN
-                        </button>
-                      </div>
+                      )}
                     </div>
                   );
                 })}

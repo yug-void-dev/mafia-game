@@ -4,17 +4,30 @@ const api = axios.create({
   baseURL: "http://localhost:5000/api",
 });
 
-const createRoom = (token, data) => api.post("/room/rooms", data, {
-  headers: { Authorization: `Bearer ${token}` }
-});
+const createRoom = (token, data) =>
+  api.post("/room/rooms", data, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
-const getRooms = (token, params = {}) => api.get("/room/rooms", {
-  headers: { Authorization: `Bearer ${token}` },
-  params,
-});
+const getRooms = (token, params = {}) =>
+  api.get("/room/rooms", {
+    headers: { Authorization: `Bearer ${token}` },
+    params,
+  });
 
-const joinRoom = (token, roomId) => api.post(`/room/rooms/${roomId}/join`, {}, {
-  headers: { Authorization: `Bearer ${token}` }
-});
+const getRoomDetails = (token, roomId) =>
+  api.get(`/room/rooms/${roomId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
-export { createRoom, getRooms, joinRoom }
+const joinRoom = (token, roomId) =>
+  api.post(`/room/rooms/${roomId}/join`, {}, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+const leaveRoom = (token, roomId) =>
+  api.post(`/room/rooms/${roomId}/leave`, {}, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export { createRoom, getRooms, getRoomDetails, joinRoom, leaveRoom };

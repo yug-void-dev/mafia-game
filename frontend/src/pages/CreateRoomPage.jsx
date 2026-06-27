@@ -8,7 +8,7 @@ const MAPS = [
   { id: 'city', name: 'City Nights', desc: 'Neon-lit streets, dark alleys, urban crime.', icon: '🏙️', color: '#ff66b2' },
   { id: 'village', name: 'Cursed Village', desc: 'Foggy cobblestone hamlet, cursed secrets.', icon: '🏘️', color: '#b0a0d0' },
   { id: 'forest', name: 'Dark Forest', desc: 'Dense woodland, shadows watching, no escape.', icon: '🌲', color: '#5ad15a' },
-  { id: 'docks', name: 'Harbor Docks', desc: 'Foggy waterfront, smuggler\'s shipwrecks.', icon: '⚓', color: '#a8d8f0' },
+  { id: 'harbor', name: 'Harbor Docks', desc: 'Foggy waterfront, smuggler\'s shipwrecks.', icon: '⚓', color: '#a8d8f0' },
   { id: 'casino', name: 'Casino Royale', desc: 'Underground high-stakes gambling den.', icon: '🎰', color: '#f0c848' },
   { id: 'mansion', name: 'Old Mansion', desc: 'Classic gothic mafia headquarters.', icon: '🏛️', color: '#ff4455' },
 ];
@@ -26,7 +26,8 @@ export default function CreateRoomPage() {
   const [selectedMap, setSelectedMap] = useState('mansion');
   const [invitedFriends, setInvitedFriends] = useState({}); // { id: boolean }
   const [copiedLink, setCopiedLink] = useState(false);
-  const [createdRoomId, setCreatedRoomId] = useState(null);
+  const [createdRoomId, setCreatedRoomId] = useState(null);       // roomCode (display)
+  const [createdRoomMongoId, setCreatedRoomMongoId] = useState(null); // MongoDB _id (navigation)
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -67,6 +68,7 @@ export default function CreateRoomPage() {
 
       if (response.data.success) {
         setCreatedRoomId(roomCode);
+        setCreatedRoomMongoId(response.data.room._id);
       }
     } catch (err) {
       const message = err?.response?.data?.error || 'Failed to create room. Please try again.';
@@ -312,7 +314,7 @@ export default function CreateRoomPage() {
                 <button onClick={() => setCreatedRoomId(null)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>
                   CONFIGURE NEW
                 </button>
-                <button  onClick={() => navigate(`/loading/${createdRoomId}`)} className="btn-primary" style={{ flex: 1, justifyContent: 'center', padding: '10px 16px' }}>
+                <button onClick={() => navigate(`/lobby/${createdRoomMongoId}`)} className="btn-primary" style={{ flex: 1, justifyContent: 'center', padding: '10px 16px' }}>
                   LAUNCH GAME
                 </button>
               </div>
