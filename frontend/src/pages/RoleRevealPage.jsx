@@ -200,7 +200,7 @@ export default function RoleRevealPage() {
 
   /* ── Main render ────────────────────────────────────── */
   return (
-    <div className="rr-container">
+    <div className={`rr-container${isOpen ? " rr-container--open" : ""}`}>
       {/* ── Background rain ── */}
       <div className="rr-rain-layer" aria-hidden="true">
         {rainDrops.map((d) => (
