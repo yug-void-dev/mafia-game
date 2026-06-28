@@ -97,32 +97,38 @@ export default function RoleRevealPage() {
   const [showBtn, setShowBtn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  /* Derive userId from localStorage */
-  const currentUserId =
-    localStorage.getItem("userId") ||
-    (() => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) return null;
-        return JSON.parse(atob(token.split(".")[1]))._id;
-      } catch {
-        return null;
-      }
-    })();
 
-  /* Fetch role from backend */
+  /* Fetch role from backend — server returns myRole directly so no client-side ID matching needed */
   useEffect(() => {
     const fetchRole = async () => {
       try {
         const token = localStorage.getItem("token");
         const response = await getRoomDetails(token, roomId);
-        const room = response.data.room;
-        if (room?.playersState) {
-          const myState = room.playersState.find((p) => {
-            const pid = p.user?._id || p.user;
-            return pid?.toString() === currentUserId?.toString();
-          });
-          if (myState?.role) setRole(myState.role);
+
+        // Prefer the authoritative myRole field returned by the server
+        if (response.data.myRole) {
+          setRole(response.data.myRole);
+        } else {
+          // Fallback: scan playersState
+          const room = response.data.room;
+          if (room?.playersState) {
+            const currentUserId =
+              localStorage.getItem("userId") ||
+              (() => {
+                try {
+                  const t = localStorage.getItem("token");
+                  if (!t) return null;
+                  return JSON.parse(atob(t.split(".")[1]))._id;
+                } catch {
+                  return null;
+                }
+              })();
+            const myState = room.playersState.find((p) => {
+              const pid = p.user?._id?.toString() || p.user?.toString();
+              return pid === currentUserId?.toString();
+            });
+            if (myState?.role) setRole(myState.role);
+          }
         }
       } catch (err) {
         console.error("Failed to load role:", err);
@@ -131,7 +137,7 @@ export default function RoleRevealPage() {
       }
     };
     fetchRole();
-  }, [roomId, currentUserId]);
+  }, [roomId]);
 
   /* Handle envelope click */
   const handleOpenEnvelope = () => {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Crown, LogOut, RefreshCw, Clock, Shield, Swords, Heart, User } from 'lucide-react';
+import { Users, Crown, LogOut, RefreshCw, Clock, Shield, Swords, Heart, User, Play, AlertTriangle } from 'lucide-react';
 import { getRoomDetails, leaveRoom, startGame } from '../services/roomService.js';
 
 const MAP_META = {
@@ -29,7 +29,8 @@ export default function RoomLobbyPage() {
   const [fetchError, setFetchError] = useState(null);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
-  const [leaveError, setLeaveError] = useState(null);
+  const [actionError, setActionError] = useState(null);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   // Derive current user id from JWT stored in localStorage
   const currentUserId = (() => {
@@ -74,27 +75,28 @@ export default function RoomLobbyPage() {
   }, [room?.gameStarted, navigate, roomId]);
 
   const handleLeave = async () => {
+    setShowLeaveConfirm(false);
     setIsLeaving(true);
-    setLeaveError(null);
+    setActionError(null);
     try {
       const token = localStorage.getItem('token');
       await leaveRoom(token, roomId);
       navigate('/join-room');
     } catch (err) {
-      setLeaveError(err?.response?.data?.error || 'Failed to leave room.');
+      setActionError(err?.response?.data?.error || 'Failed to leave room.');
       setIsLeaving(false);
     }
   };
 
   const handleStartGame = async () => {
     setIsStarting(true);
-    setLeaveError(null);
+    setActionError(null);
     try {
       const token = localStorage.getItem('token');
       await startGame(token, roomId);
       navigate(`/loading/${roomId}`);
     } catch (err) {
-      setLeaveError(err?.response?.data?.error || 'Failed to start game.');
+      setActionError(err?.response?.data?.error || 'Failed to start game.');
       setIsStarting(false);
     }
   };
@@ -150,6 +152,25 @@ export default function RoomLobbyPage() {
   const currentPlayers = room.users?.length || 0;
   const isHost = room.host?._id === currentUserId || room.host === currentUserId;
   const isFull = currentPlayers >= room.totalPlayers;
+  const MIN_PLAYERS = 5;
+  const canStart = currentPlayers >= MIN_PLAYERS;
+
+  // Dynamic mafia count — mirrors backend logic so display is accurate
+  const effectiveMafiaCount = currentPlayers <= 7 ? 1 : currentPlayers <= 12 ? 2 : 3;
+
+  // Status helpers
+  const playersNeeded = MIN_PLAYERS - currentPlayers;
+  const statusColor = isFull ? '#5ad15a' : canStart ? '#ffd700' : '#ff8800';
+  const statusText = isFull
+    ? 'LOBBY FULL — READY!'
+    : canStart
+    ? 'READY TO START!'
+    : `WAITING FOR PLAYERS`;
+  const statusSub = isFull
+    ? 'All slots filled. Host can start now!'
+    : canStart
+    ? `${currentPlayers}/${room.totalPlayers} players — host can start anytime!`
+    : `Need ${playersNeeded} more player${playersNeeded !== 1 ? 's' : ''} to start (min ${MIN_PLAYERS})`;
 
   return (
     <div className="page-scroll" style={{
@@ -205,7 +226,7 @@ export default function RoomLobbyPage() {
             <RefreshCw size={14} /> REFRESH
           </button>
           <button
-            onClick={handleLeave}
+            onClick={() => setShowLeaveConfirm(true)}
             disabled={isLeaving}
             className="btn-secondary"
             style={{ gap: 8, opacity: isLeaving ? 0.6 : 1, cursor: isLeaving ? 'not-allowed' : 'pointer' }}
@@ -216,9 +237,9 @@ export default function RoomLobbyPage() {
         </div>
       </motion.div>
 
-      {/* ── Leave error ─────────────────────────────────────────── */}
+      {/* ── Error banner ─────────────────────────────────────────── */}
       <AnimatePresence>
-        {leaveError && (
+        {actionError && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -226,9 +247,66 @@ export default function RoomLobbyPage() {
             style={{
               background: 'rgba(255,20,40,0.08)', border: '1px solid rgba(255,20,40,0.3)',
               borderRadius: 8, padding: '10px 16px', fontSize: 12, color: '#ff6677',
+              display: 'flex', alignItems: 'center', gap: 8,
             }}
           >
-            ⚠️ {leaveError}
+            <AlertTriangle size={14} /> {actionError}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Leave confirmation modal ─────────────────────────────── */}
+      <AnimatePresence>
+        {showLeaveConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 999,
+              background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              style={{
+                background: 'rgba(12,6,18,0.98)', border: '1.5px solid rgba(255,68,85,0.35)',
+                borderRadius: 16, padding: '32px 36px', maxWidth: 380, width: '90%',
+                display: 'flex', flexDirection: 'column', gap: 16, textAlign: 'center',
+              }}
+            >
+              <span style={{ fontSize: 36 }}>🚪</span>
+              <h3 style={{ fontFamily: 'var(--font-display)', color: '#ff4455', fontSize: 17, letterSpacing: '0.08em' }}>
+                LEAVE ROOM?
+              </h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.6 }}>
+                {isHost && currentPlayers > 1
+                  ? 'You are the host. Leaving will transfer control to the next player.'
+                  : 'Are you sure you want to leave this lobby?'}
+              </p>
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <button
+                  onClick={() => setShowLeaveConfirm(false)}
+                  style={{
+                    flex: 1, padding: '10px 0', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)',
+                    color: 'var(--text-muted)', cursor: 'pointer', letterSpacing: '0.06em',
+                  }}
+                >
+                  STAY
+                </button>
+                <button
+                  onClick={handleLeave}
+                  className="btn-primary"
+                  style={{ flex: 1, padding: '10px 0', fontSize: 12, letterSpacing: '0.06em' }}
+                >
+                  LEAVE
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -370,19 +448,17 @@ export default function RoomLobbyPage() {
             {/* Status pill */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 10,
-              background: isFull ? 'rgba(90,200,100,0.08)' : 'rgba(255,200,0,0.06)',
-              border: `1px solid ${isFull ? 'rgba(90,200,100,0.25)' : 'rgba(255,200,0,0.2)'}`,
+              background: isFull ? 'rgba(90,200,100,0.08)' : canStart ? 'rgba(255,200,0,0.07)' : 'rgba(255,130,0,0.07)',
+              border: `1px solid ${statusColor}44`,
               borderRadius: 8, padding: '12px 14px',
             }}>
-              <Clock size={16} color={isFull ? '#5ad15a' : '#ffd700'} />
+              <Clock size={16} color={statusColor} />
               <div>
-                <span style={{ fontWeight: 700, fontSize: 13, color: isFull ? '#5ad15a' : '#ffd700', display: 'block' }}>
-                  {isFull ? 'LOBBY FULL — READY!' : 'WAITING FOR PLAYERS'}
+                <span style={{ fontWeight: 700, fontSize: 13, color: statusColor, display: 'block' }}>
+                  {statusText}
                 </span>
                 <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
-                  {isFull
-                    ? 'All players have joined. Host can start the game.'
-                    : `${room.totalPlayers - currentPlayers} more player${room.totalPlayers - currentPlayers !== 1 ? 's' : ''} needed`}
+                  {statusSub}
                 </span>
               </div>
             </div>
@@ -393,7 +469,7 @@ export default function RoomLobbyPage() {
               { label: 'MAP', value: `${mapMeta.icon} ${mapMeta.name}` },
               { label: 'MODE', value: room.contractMode?.toUpperCase() },
               { label: 'MAX PLAYERS', value: room.totalPlayers },
-              { label: 'MAFIA COUNT', value: room.mafiaCount },
+              { label: 'MAFIA COUNT', value: `${effectiveMafiaCount}${effectiveMafiaCount !== room.mafiaCount ? ` (was ${room.mafiaCount})` : ''}` },
               { label: 'VISIBILITY', value: room.roomType?.toUpperCase() },
             ].map(({ label, value }) => (
               <div key={label} style={{
@@ -442,19 +518,55 @@ export default function RoomLobbyPage() {
           </div>
 
           {/* Start game — host only */}
-          {isHost && (
-            <button
+          {isHost ? (
+            <motion.button
               onClick={handleStartGame}
               className="btn-primary"
-              disabled={!isFull || isStarting}
+              disabled={!canStart || isStarting}
+              whileHover={canStart && !isStarting ? { scale: 1.02 } : {}}
+              whileTap={canStart && !isStarting ? { scale: 0.98 } : {}}
               style={{
-                width: '100%', height: 48, fontSize: 14, gap: 10,
-                opacity: isFull ? 1 : 0.45,
-                cursor: isFull ? (isStarting ? 'not-allowed' : 'pointer') : 'not-allowed',
+                width: '100%', height: 52, fontSize: 14, gap: 10,
+                opacity: canStart ? 1 : 0.45,
+                cursor: canStart ? (isStarting ? 'not-allowed' : 'pointer') : 'not-allowed',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: canStart
+                  ? 'linear-gradient(135deg, #ff2233 0%, #cc1122 100%)'
+                  : 'rgba(255,255,255,0.06)',
+                border: canStart ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                position: 'relative', overflow: 'hidden',
               }}
             >
-              {isStarting ? 'STARTING...' : (isFull ? '🚀 START GAME' : `⏳ WAITING (${currentPlayers}/${room.totalPlayers})`)}
-            </button>
+              {canStart && !isStarting && (
+                <motion.div
+                  style={{
+                    position: 'absolute', inset: 0,
+                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)',
+                  }}
+                  animate={{ x: ['-100%', '200%'] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                />
+              )}
+              <Play size={16} style={{ position: 'relative', zIndex: 1 }} />
+              <span style={{ position: 'relative', zIndex: 1 }}>
+                {isStarting
+                  ? 'STARTING GAME...'
+                  : canStart
+                  ? `🚀 START GAME (${currentPlayers} Players)`
+                  : `⏳ NEED ${MIN_PLAYERS - currentPlayers} MORE PLAYER${MIN_PLAYERS - currentPlayers !== 1 ? 'S' : ''}`
+                }
+              </span>
+            </motion.button>
+          ) : (
+            <div style={{
+              width: '100%', height: 52, borderRadius: 10,
+              background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              fontSize: 12, color: 'var(--text-muted)',
+            }}>
+              <Crown size={14} color="#ffd700" />
+              Waiting for host to start the game...
+            </div>
           )}
         </motion.div>
       </div>

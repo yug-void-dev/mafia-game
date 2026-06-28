@@ -102,23 +102,25 @@ export const getRoomDetails = async (req, res) => {
       const myState = roomObj.playersState.find(p => p.user.toString() === currentUserId);
       const amIMafia = myState && myState.role === "mafia";
 
+      // Mask other players' roles — only current player can see their own role
       roomObj.playersState = roomObj.playersState.map(player => {
         if (player.user.toString() === currentUserId) return player;
-
-        if (amIMafia && player.role === "mafia") return player;
-
+        if (amIMafia && player.role === "mafia") return player; // mafia can see teammates
         return { ...player, role: null };
       });
 
       return res.status(200).json({
         success: true,
         room: roomObj,
+        // Return role directly so frontend doesn't need to do ID matching
+        myRole: myState?.role || null,
       });
     }
 
     return res.status(200).json({
       success: true,
       room,
+      myRole: null,
     });
 
   } catch (error) {
@@ -209,8 +211,11 @@ export const leaveRoom = async (req, res) => {
     // Remove user from the room
     room.users = room.users.filter((id) => id.toString() !== userId);
 
+    // Safely get host ID — handle both raw ObjectId and populated object
+    const hostId = room.host?._id?.toString() || room.host?.toString();
+
     // If the host leaves and there are still players, transfer host to next player
-    if (room.host.toString() === userId && room.users.length > 0) {
+    if (hostId === userId && room.users.length > 0) {
       room.host = room.users[0];
     }
 
@@ -228,6 +233,7 @@ export const leaveRoom = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Left room successfully",
+      newHost: room.host.toString(),
     });
 
   } catch (error) {
@@ -248,8 +254,11 @@ export const startGame = async (req, res) => {
       return res.status(404).json({ success: false, error: "Room not found" });
     }
 
+    // Safely get host ID — handle both raw ObjectId and populated object
+    const hostId = room.host?._id?.toString() || room.host?.toString();
+
     // Only host can start
-    if (room.host.toString() !== req.user._id.toString()) {
+    if (hostId !== req.user._id.toString()) {
       return res.status(403).json({ success: false, error: "Only the host can start the game" });
     }
 
@@ -258,24 +267,38 @@ export const startGame = async (req, res) => {
     }
 
     const totalPlayers = room.users.length;
-    const numMafia = room.mafiaCount;
+
+    // Minimum 5 players: 1 mafia + 1 doctor + 1 police + at least 2 villagers
+    if (totalPlayers < 5) {
+      return res.status(400).json({
+        success: false,
+        error: `Not enough players. Need at least 5 to start (1 Mafia + 1 Doctor + 1 Police + 2 Villagers). Currently: ${totalPlayers}`,
+      });
+    }
+
+    // Dynamically calculate mafia count based on ACTUAL players present at start time
+    // (not the static value stored at room creation)
+    let numMafia;
+    if (totalPlayers <= 7) {
+      numMafia = 1;
+    } else if (totalPlayers <= 12) {
+      numMafia = 2;
+    } else {
+      numMafia = 3;
+    }
+
     const numDoctor = 1;
     const numPolice = 1;
+    const numVillagers = totalPlayers - numMafia - numDoctor - numPolice;
 
-    // Ensure we don't end up with negative villagers if we test with very few players
-    const numVillagers = Math.max(0, totalPlayers - numMafia - numDoctor - numPolice);
-
+    // Build roles array: always guaranteed 1 mafia + 1 doctor + 1 police + rest villagers
     let roles = [];
     for (let i = 0; i < numMafia; i++) roles.push("mafia");
     for (let i = 0; i < numDoctor; i++) roles.push("doctor");
     for (let i = 0; i < numPolice; i++) roles.push("police");
     for (let i = 0; i < numVillagers; i++) roles.push("villager");
 
-    // If we have fewer players than required roles (e.g. testing with 2 players),
-    // slice the roles array to match the number of players
-    roles = roles.slice(0, totalPlayers);
-
-    // Shuffle roles array
+    // Fisher-Yates shuffle
     for (let i = roles.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [roles[i], roles[j]] = [roles[j], roles[i]];
@@ -283,18 +306,20 @@ export const startGame = async (req, res) => {
 
     const playersState = room.users.map((userId, index) => ({
       user: userId,
-      role: roles[index] || "villager",
-      isAlive: true
+      role: roles[index],
+      isAlive: true,
     }));
 
     room.playersState = playersState;
+    room.mafiaCount = numMafia;  // Update to actual count used
     room.gameStarted = true;
-    room.gameState = "NIGHT"; // Mafia games typically start at night
+    room.gameState = "NIGHT"; // Mafia games start at night
     await room.save();
 
     return res.status(200).json({
       success: true,
       message: "Game started successfully",
+      mafiaCount: numMafia,
     });
 
   } catch (error) {
