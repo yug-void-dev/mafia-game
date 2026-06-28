@@ -13,6 +13,8 @@ import roomRouter from "./routes/roomRouter.js";
 import userRouter from "./routes/userRouter.js";
 
 import path from "path";
+import http from "http";
+import { initializeSocket } from "./config/socket.js";
 
 const app = express();
 
@@ -35,11 +37,14 @@ app.use("/api/friends", authMiddleware, friendRouter);
 app.use("/api/room", authMiddleware, roomRouter);
 app.use("/api/user", authMiddleware, userRouter);
 
+const server = http.createServer(app);
+initializeSocket(server);
+
 const port = process.env.PORT || 5000;
 
 dbConnect()
   .then(() => {
-    app.listen(port, () => {
+    server.listen(port, () => {
       console.log(
         `Server is listening on port http://localhost:${port}`
       );

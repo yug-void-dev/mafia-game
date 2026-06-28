@@ -12,15 +12,15 @@ import StorePage from "./pages/StorePage";
 import SettingsPage from "./pages/SettingsPage";
 import AuthPage from "./pages/AuthPage";
 import LoadingScreen from "./pages/LoadingScreen";
+import RoleRevealPage from "./pages/RoleRevealPage";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<AuthPage />} />
-
-        {/* Standalone loading page */}
-        <Route path="/loading" element={<LoadingScreen />} />
+        <Route path="/loading/:roomId" element={<LoadingScreen />} />
+        <Route path="/role-reveal/:roomId" element={<RoleRevealPage />} />
 
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<DashboardPage />} />

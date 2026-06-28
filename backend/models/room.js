@@ -79,6 +79,23 @@ const roomSchema = new mongoose.Schema(
       unique: true,
       required: true,
     },
+    //* tracks in-game state for each player
+    playersState: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        role: {
+          type: String,
+          enum: ["mafia", "doctor", "police", "villager"],
+        },
+        isAlive: {
+          type: Boolean,
+          default: true,
+        },
+      },
+    ],
   },
   {
     timestamps: true,

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import "./LoadingScreen.css";
 
 export default function LoadingScreen() {
   const navigate = useNavigate();
+  const { roomId } = useParams();
 
   const [step, setStep] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -30,7 +31,7 @@ export default function LoadingScreen() {
     }, 300);
 
     const nav = setTimeout(() => {
-      navigate("/role");
+      navigate(`/role-reveal/${roomId || ''}`);
     }, 5000);
 
     return () => {
@@ -38,7 +39,7 @@ export default function LoadingScreen() {
       clearInterval(interval);
       clearTimeout(nav);
     };
-  }, [navigate]);
+  }, [navigate, roomId]);
 
   return (
     <div className="loading-screen">

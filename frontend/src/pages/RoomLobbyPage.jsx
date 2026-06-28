@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Crown, LogOut, RefreshCw, Clock, Shield, Swords, Heart, User } from 'lucide-react';
-import { getRoomDetails, leaveRoom } from '../services/roomService.js';
+import { getRoomDetails, leaveRoom, startGame } from '../services/roomService.js';
 
 const MAP_META = {
   city:    { name: 'City Nights',    icon: '🏙️', color: '#ff66b2' },
@@ -28,6 +28,7 @@ export default function RoomLobbyPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [leaveError, setLeaveError] = useState(null);
 
   // Derive current user id from JWT stored in localStorage
@@ -65,6 +66,13 @@ export default function RoomLobbyPage() {
     return () => clearInterval(interval);
   }, [fetchRoom]);
 
+  // Auto-redirect to loading screen if game started
+  useEffect(() => {
+    if (room?.gameStarted) {
+      navigate(`/loading/${roomId}`);
+    }
+  }, [room?.gameStarted, navigate, roomId]);
+
   const handleLeave = async () => {
     setIsLeaving(true);
     setLeaveError(null);
@@ -75,6 +83,19 @@ export default function RoomLobbyPage() {
     } catch (err) {
       setLeaveError(err?.response?.data?.error || 'Failed to leave room.');
       setIsLeaving(false);
+    }
+  };
+
+  const handleStartGame = async () => {
+    setIsStarting(true);
+    setLeaveError(null);
+    try {
+      const token = localStorage.getItem('token');
+      await startGame(token, roomId);
+      navigate(`/loading/${roomId}`);
+    } catch (err) {
+      setLeaveError(err?.response?.data?.error || 'Failed to start game.');
+      setIsStarting(false);
     }
   };
 
@@ -277,9 +298,15 @@ export default function RoomLobbyPage() {
                     background: 'rgba(255,255,255,0.06)',
                     border: '1.5px solid rgba(255,255,255,0.12)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 20,
+                    fontSize: 20, overflow: 'hidden'
                   }}>
-                    {player.avatar || '🎭'}
+                    {player.avatar ? (
+                      player.avatar.startsWith('http') || player.avatar.startsWith('/') ? (
+                        <img src={player.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        player.avatar
+                      )
+                    ) : '🎭'}
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -414,19 +441,19 @@ export default function RoomLobbyPage() {
             </p>
           </div>
 
-          {/* Start game — host only, placeholder for now */}
+          {/* Start game — host only */}
           {isHost && (
             <button
-              onClick={() => navigate('/loading')}
+              onClick={handleStartGame}
               className="btn-primary"
-              disabled={!isFull}
+              disabled={!isFull || isStarting}
               style={{
                 width: '100%', height: 48, fontSize: 14, gap: 10,
                 opacity: isFull ? 1 : 0.45,
-                cursor: isFull ? 'pointer' : 'not-allowed',
+                cursor: isFull ? (isStarting ? 'not-allowed' : 'pointer') : 'not-allowed',
               }}
             >
-              {isFull ? '🚀 START GAME' : `⏳ WAITING (${currentPlayers}/${room.totalPlayers})`}
+              {isStarting ? 'STARTING...' : (isFull ? '🚀 START GAME' : `⏳ WAITING (${currentPlayers}/${room.totalPlayers})`)}
             </button>
           )}
         </motion.div>

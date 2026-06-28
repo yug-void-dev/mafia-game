@@ -30,4 +30,9 @@ const leaveRoom = (token, roomId) =>
     headers: { Authorization: `Bearer ${token}` },
   });
 
-export { createRoom, getRooms, getRoomDetails, joinRoom, leaveRoom };
+const startGame = (token, roomId) =>
+  api.post(`/room/rooms/${roomId}/start`, {}, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export { createRoom, getRooms, getRoomDetails, joinRoom, leaveRoom, startGame };
