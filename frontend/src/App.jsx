@@ -13,6 +13,7 @@ import SettingsPage from "./pages/SettingsPage";
 import AuthPage from "./pages/AuthPage";
 import LoadingScreen from "./pages/LoadingScreen";
 import RoleRevealPage from "./pages/RoleRevealPage";
+import GameMapPage from "./pages/GameMapPage";
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/" element={<AuthPage />} />
         <Route path="/loading/:roomId" element={<LoadingScreen />} />
         <Route path="/role-reveal/:roomId" element={<RoleRevealPage />} />
+        <Route path="/game/:roomId" element={<GameMapPage />} />
 
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<DashboardPage />} />

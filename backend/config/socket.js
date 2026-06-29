@@ -1,5 +1,8 @@
 import { Server } from "socket.io";
 
+// In-memory store for active map sessions: { [roomId]: { players: { [socketId]: userData } } }
+const mapRooms = {};
+
 export const initializeSocket = (server) => {
   const io = new Server(server, {
     cors: {
@@ -10,16 +13,59 @@ export const initializeSocket = (server) => {
 
   io.on("connection", (socket) => {
     console.log("New client connected to socket:", socket.id);
+    let currentRoomId = null;
 
     socket.on("join-map", (roomId, userData) => {
+      currentRoomId = roomId;
       socket.join(roomId);
-      socket.to(roomId).emit("player-joined", { id: socket.id, ...userData });
-      console.log(`User ${socket.id} joined room map: ${roomId}`);
+
+      // Initialize room store if not exists
+      if (!mapRooms[roomId]) {
+        mapRooms[roomId] = {
+          players: {},
+          phase: "DAY",
+          day: 1,
+          timer: 165
+        };
+      }
+
+      // Store current player data (including position, name, color, role)
+      mapRooms[roomId].players[socket.id] = {
+        id: socket.id,
+        ...userData,
+        isAlive: userData.isAlive !== false
+      };
+
+      // 1. Send the current map snapshot (list of all active players in the room) to the joining player
+      const activePlayers = Object.values(mapRooms[roomId].players);
+      socket.emit("map-snapshot", {
+        players: activePlayers,
+        phase: mapRooms[roomId].phase,
+        day: mapRooms[roomId].day,
+        timer: mapRooms[roomId].timer
+      });
+
+      // 2. Broadcast player-joined to everyone else in the room
+      socket.to(roomId).emit("player-joined", {
+        id: socket.id,
+        ...userData
+      });
+
+      console.log(`User ${userData.username || 'Guest'} (${socket.id}) joined room map: ${roomId}`);
     });
 
     socket.on("player-move", (roomId, positionData) => {
-
-      socket.to(roomId).emit("player-moved", { id: socket.id, ...positionData });
+      if (mapRooms[roomId] && mapRooms[roomId].players[socket.id]) {
+        // Update stored position & rotation
+        mapRooms[roomId].players[socket.id].position = positionData.position;
+        mapRooms[roomId].players[socket.id].rotation = positionData.rotation;
+        mapRooms[roomId].players[socket.id].walking = true;
+      }
+      // Broadcast to other players in the room
+      socket.to(roomId).emit("player-moved", {
+        id: socket.id,
+        ...positionData
+      });
     });
 
     socket.on("send-chat", (roomId, messageData) => {
@@ -28,7 +74,18 @@ export const initializeSocket = (server) => {
 
     socket.on("disconnect", () => {
       console.log("Client disconnected:", socket.id);
-      io.emit("player-left", { id: socket.id });
+      if (currentRoomId && mapRooms[currentRoomId]) {
+        // Remove player from store
+        delete mapRooms[currentRoomId].players[socket.id];
+        
+        // Broadcast player-left
+        io.to(currentRoomId).emit("player-left", { id: socket.id });
+
+        // Clean up room if empty
+        if (Object.keys(mapRooms[currentRoomId].players).length === 0) {
+          delete mapRooms[currentRoomId];
+        }
+      }
     });
   });
 

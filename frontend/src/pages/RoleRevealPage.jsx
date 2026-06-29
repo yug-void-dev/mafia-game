@@ -319,7 +319,7 @@ export default function RoleRevealPage() {
       {showBtn && (
         <button
           className={`rr-proceed rr-proceed--${role}`}
-          onClick={() => navigate("/game")}
+          onClick={() => navigate(`/game/${roomId}`)}
         >
           I ACCEPT MY FATE
         </button>
