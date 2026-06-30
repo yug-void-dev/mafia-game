@@ -97,21 +97,29 @@ export default function RoleRevealPage() {
   const [showBtn, setShowBtn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-
-  /* Fetch role from backend — server returns myRole directly so no client-side ID matching needed */
   useEffect(() => {
-    const fetchRole = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await getRoomDetails(token, roomId);
+    let cancelled = false;
+    let attempt = 0;
+    const MAX_ATTEMPTS = 10;
+    const RETRY_DELAY_MS = 1200;
 
-        // Prefer the authoritative myRole field returned by the server
-        if (response.data.myRole) {
-          setRole(response.data.myRole);
-        } else {
-          // Fallback: scan playersState
+    const fetchRole = async () => {
+      while (!cancelled && attempt < MAX_ATTEMPTS) {
+        attempt++;
+        try {
+          const token = localStorage.getItem("token");
+          const response = await getRoomDetails(token, roomId);
+
+          if (response.data.myRole) {
+            if (!cancelled) {
+              setRole(response.data.myRole);
+              setIsLoading(false);
+            }
+            return;
+          }
+
           const room = response.data.room;
-          if (room?.playersState) {
+          if (room?.playersState && room.playersState.length > 0) {
             const currentUserId =
               localStorage.getItem("userId") ||
               (() => {
@@ -127,19 +135,33 @@ export default function RoleRevealPage() {
               const pid = p.user?._id?.toString() || p.user?.toString();
               return pid === currentUserId?.toString();
             });
-            if (myState?.role) setRole(myState.role);
+            if (myState?.role) {
+              if (!cancelled) {
+                setRole(myState.role);
+                setIsLoading(false);
+              }
+              return;
+            }
+          }
+
+          if (!cancelled && attempt < MAX_ATTEMPTS) {
+            await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+          }
+        } catch (err) {
+          console.error("Failed to load role (attempt " + attempt + "):", err);
+          if (!cancelled && attempt < MAX_ATTEMPTS) {
+            await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
           }
         }
-      } catch (err) {
-        console.error("Failed to load role:", err);
-      } finally {
-        setIsLoading(false);
       }
+
+      if (!cancelled) setIsLoading(false);
     };
+
     fetchRole();
+    return () => { cancelled = true; };
   }, [roomId]);
 
-  /* Handle envelope click */
   const handleOpenEnvelope = () => {
     if (isOpen) return;
     setIsOpen(true);
@@ -147,7 +169,6 @@ export default function RoleRevealPage() {
     setTimeout(() => setShowBtn(true), 1500);
   };
 
-  /* Memoised background elements (never recalculate on re-render) */
   const rainDrops = useMemo(
     () =>
       Array.from({ length: 75 }, (_, i) => ({

@@ -95,16 +95,30 @@ export const getRoomDetails = async (req, res) => {
       });
     }
 
+    // ── Compute isHost server-side using the verified JWT user ──────────────
+    // This is 100% reliable: req.user._id comes from the auth middleware (JWT
+    // verified), and room.host comes directly from MongoDB — no client-side
+    // ObjectId/string mismatch or stale localStorage token issues possible.
+    const currentUserId = req.user._id?.toString?.() || String(req.user._id);
+    const hostId =
+      room.host?._id?.toString?.() ||
+      room.host?.toString?.() ||
+      String(room.host);
+    const isHost = hostId === currentUserId;
+
     if (room.gameStarted && room.playersState && room.playersState.length > 0) {
       const roomObj = room.toObject();
-      const currentUserId = req.user._id.toString();
 
-      const myState = roomObj.playersState.find(p => p.user.toString() === currentUserId);
+      const myState = roomObj.playersState.find(p => {
+        const pUserId = p.user?._id?.toString?.() || p.user?.toString?.() || String(p.user);
+        return pUserId === currentUserId;
+      });
       const amIMafia = myState && myState.role === "mafia";
 
       // Mask other players' roles — only current player can see their own role
       roomObj.playersState = roomObj.playersState.map(player => {
-        if (player.user.toString() === currentUserId) return player;
+        const pUserId = player.user?._id?.toString?.() || player.user?.toString?.() || String(player.user);
+        if (pUserId === currentUserId) return player;
         if (amIMafia && player.role === "mafia") return player; // mafia can see teammates
         return { ...player, role: null };
       });
@@ -112,8 +126,8 @@ export const getRoomDetails = async (req, res) => {
       return res.status(200).json({
         success: true,
         room: roomObj,
-        // Return role directly so frontend doesn't need to do ID matching
         myRole: myState?.role || null,
+        isHost,  // ← server-determined, always correct
       });
     }
 
@@ -121,6 +135,7 @@ export const getRoomDetails = async (req, res) => {
       success: true,
       room,
       myRole: null,
+      isHost,  // ← server-determined, always correct
     });
 
   } catch (error) {

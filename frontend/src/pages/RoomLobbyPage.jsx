@@ -25,6 +25,9 @@ export default function RoomLobbyPage() {
   const navigate = useNavigate();
 
   const [room, setRoom] = useState(null);
+  // isHost is determined server-side (backend compares verified JWT user with room.host)
+  // so it's always accurate regardless of client localStorage token state.
+  const [isHost, setIsHost] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const [isLeaving, setIsLeaving] = useState(false);
@@ -32,7 +35,7 @@ export default function RoomLobbyPage() {
   const [actionError, setActionError] = useState(null);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
-  // Derive current user id from JWT stored in localStorage
+  // Derive current user id from JWT — still needed to mark "(you)" in the player grid
   const currentUserId = (() => {
     try {
       const token = localStorage.getItem('token');
@@ -48,6 +51,11 @@ export default function RoomLobbyPage() {
       const token = localStorage.getItem('token');
       const response = await getRoomDetails(token, roomId);
       setRoom(response.data.room);
+      // Use server-returned isHost — computed from the verified JWT user vs room.host
+      // This is the single source of truth for host status.
+      if (typeof response.data.isHost === 'boolean') {
+        setIsHost(response.data.isHost);
+      }
       setFetchError(null);
     } catch (err) {
       if (err?.response?.status === 404) {
@@ -60,10 +68,10 @@ export default function RoomLobbyPage() {
     }
   }, [roomId]);
 
-  // Initial load + auto-refresh every 5 seconds
+  // Initial load + auto-refresh every 2 seconds so host sees new players join quickly
   useEffect(() => {
     fetchRoom();
-    const interval = setInterval(fetchRoom, 5000);
+    const interval = setInterval(fetchRoom, 2000);
     return () => clearInterval(interval);
   }, [fetchRoom]);
 
@@ -150,7 +158,7 @@ export default function RoomLobbyPage() {
 
   const mapMeta = MAP_META[room.map] || { name: room.map, icon: '🏛️', color: '#ff4455' };
   const currentPlayers = room.users?.length || 0;
-  const isHost = room.host?._id === currentUserId || room.host === currentUserId;
+  // isHost comes from state (set by fetchRoom from the server response) — see above
   const isFull = currentPlayers >= room.totalPlayers;
   const MIN_PLAYERS = 5;
   const canStart = currentPlayers >= MIN_PLAYERS;
@@ -346,8 +354,8 @@ export default function RoomLobbyPage() {
           }}>
             {/* Filled slots */}
             {room.users?.map((player, idx) => {
-              const isMe = player._id === currentUserId;
-              const isPlayerHost = player._id === room.host?._id || player._id === room.host;
+              const isMe = player._id?.toString() === currentUserId;
+              const isPlayerHost = (room.host?._id?.toString() || room.host?.toString()) === player._id?.toString();
 
               return (
                 <motion.div
@@ -469,7 +477,7 @@ export default function RoomLobbyPage() {
               { label: 'MAP', value: `${mapMeta.icon} ${mapMeta.name}` },
               { label: 'MODE', value: room.contractMode?.toUpperCase() },
               { label: 'MAX PLAYERS', value: room.totalPlayers },
-              { label: 'MAFIA COUNT', value: `${effectiveMafiaCount}${effectiveMafiaCount !== room.mafiaCount ? ` (was ${room.mafiaCount})` : ''}` },
+              { label: 'MAFIA COUNT', value: `${effectiveMafiaCount} (for ${currentPlayers} players)` },
               { label: 'VISIBILITY', value: room.roomType?.toUpperCase() },
             ].map(({ label, value }) => (
               <div key={label} style={{
@@ -507,7 +515,7 @@ export default function RoomLobbyPage() {
                 <span style={{ fontWeight: 700, fontSize: 12, color: meta.color }}>{meta.label.toUpperCase()}</span>
                 {role === 'mafia' && (
                   <span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--text-muted)' }}>
-                    ×{room.mafiaCount}
+                    ×{effectiveMafiaCount}
                   </span>
                 )}
               </div>
@@ -523,18 +531,24 @@ export default function RoomLobbyPage() {
               onClick={handleStartGame}
               className="btn-primary"
               disabled={!canStart || isStarting}
-              whileHover={canStart && !isStarting ? { scale: 1.02 } : {}}
-              whileTap={canStart && !isStarting ? { scale: 0.98 } : {}}
+              whileHover={canStart && !isStarting ? { scale: 1.015, boxShadow: '0 0 30px rgba(255, 34, 51, 0.65)' } : {}}
+              whileTap={canStart && !isStarting ? { scale: 0.985 } : {}}
               style={{
                 width: '100%', height: 52, fontSize: 14, gap: 10,
                 opacity: canStart ? 1 : 0.45,
                 cursor: canStart ? (isStarting ? 'not-allowed' : 'pointer') : 'not-allowed',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: canStart ? '#ffffff' : 'rgba(255, 255, 255, 0.4)',
+                textShadow: canStart ? '0 1px 2px rgba(0, 0, 0, 0.5)' : 'none',
                 background: canStart
-                  ? 'linear-gradient(135deg, #ff2233 0%, #cc1122 100%)'
+                  ? 'linear-gradient(135deg, #ff2233 0%, #b80d1a 100%)'
                   : 'rgba(255,255,255,0.06)',
-                border: canStart ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                border: canStart ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255,255,255,0.1)',
+                boxShadow: canStart
+                  ? '0 0 20px rgba(255, 34, 51, 0.45), inset 0 0 10px rgba(255, 255, 255, 0.2)'
+                  : 'none',
                 position: 'relative', overflow: 'hidden',
+                transition: 'box-shadow 0.2s ease, background 0.2s ease',
               }}
             >
               {canStart && !isStarting && (

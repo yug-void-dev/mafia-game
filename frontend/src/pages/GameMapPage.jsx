@@ -543,7 +543,8 @@ export default function GameMapPage() {
   }, []);
 
   const [myName, setMyName] = useState(() => {
-    return localStorage.getItem("username") || localStorage.getItem("mafia_username") || `Player_${myId.slice(-4)}`;
+    // Only use mafia_username (written by HUD from DB). Never read the stale "username" key.
+    return localStorage.getItem("mafia_username") || `Player_${myId.slice(-4)}`;
   });
 
   const myColor = useMemo(
@@ -574,7 +575,12 @@ export default function GameMapPage() {
   const chatBoxRef = useRef(null);
   const lastEmitRef = useRef(0);
 
-  // Fetch real game state & roles from backend API on mount using locked token
+  // Total players in the DB room, default to 5
+  const [dbTotalPlayers, setDbTotalPlayers] = useState(5);
+
+  // Fetch real game state & roles from backend API on mount + phase changes.
+  // After resolving, push the correct username + role to the socket so other
+  // players see accurate data without a full re-join.
   useEffect(() => {
     const fetchGameDetails = async () => {
       try {
@@ -583,22 +589,56 @@ export default function GameMapPage() {
         if (response.data?.success) {
           const room = response.data.room;
 
-          // Resolve dynamic username
+          let resolvedName = null;
+          let resolvedRole = null;
+          let resolvedAlive = true;
+
+          // Set total player count in the room
           if (room?.users) {
-            const me = room.users.find(u => (u._id?.toString() || u.toString()) === myId);
-            if (me?.username) setMyName(me.username);
+            setDbTotalPlayers(room.users.length);
           }
 
-          // Resolve role & status
+          // Resolve dynamic username from the authoritative DB data
+          if (room?.users) {
+            const me = room.users.find(u => (u._id?.toString() || u.toString()) === myId);
+            if (me?.username) {
+              resolvedName = me.username;
+              setMyName(me.username);
+              // Keep mafia_username in sync so the socket initial join also benefits
+              localStorage.setItem("mafia_username", me.username);
+            }
+          }
+
+          // Resolve role & alive status
           if (response.data.myRole) {
+            resolvedRole = response.data.myRole;
             setMyRole(response.data.myRole);
           } else if (room?.playersState) {
             const myState = room.playersState.find(p => {
               const pid = p.user?._id?.toString() || p.user?.toString();
               return pid === myId;
             });
-            if (myState?.role) setMyRole(myState.role);
-            if (myState) setIsAlive(myState.isAlive !== false);
+            if (myState?.role) {
+              resolvedRole = myState.role;
+              setMyRole(myState.role);
+            }
+            if (myState) {
+              resolvedAlive = myState.isAlive !== false;
+              setIsAlive(myState.isAlive !== false);
+            }
+          }
+
+          // Push the correct data to the socket server so remote players see
+          // the right username/role without triggering a re-join.
+          if (resolvedName || resolvedRole) {
+            try {
+              const sock = getSocket();
+              sock.emit("update-player", roomId, {
+                username: resolvedName,
+                role: resolvedRole,
+                isAlive: resolvedAlive,
+              });
+            } catch (_) { /* socket not yet connected, join-map will carry correct data */ }
           }
         }
       } catch (err) {
@@ -608,14 +648,14 @@ export default function GameMapPage() {
     if (roomId && roomId !== "demo") {
       fetchGameDetails();
     }
-  }, [roomId, myId]);
+  }, [roomId, myId, phase]);
 
-  // Connect socket & wire events
+  // Connect socket & wire events — runs once on mount (roomId/myId are stable)
   useEffect(() => {
-    // Wait until the real user profile is loaded from the database
-    if (myName === "Player") return;
-
     const sock = getSocket();
+
+    // Emit join-map using the best available name at this point.
+    // The name/role will be refreshed once the API fetch resolves.
     sock.emit("join-map", roomId, {
       username: myName,
       color: myColor,
@@ -671,6 +711,16 @@ export default function GameMapPage() {
       setDay(d.day);
     };
     const onVote = (d) => setVoteTally(d.tally || {});
+    // When a remote player pushes their DB-resolved username/role, update our list
+    const onPlayerUpdated = (p) => {
+      setPlayers((prev) =>
+        prev.map((x) =>
+          x.id === p.id
+            ? { ...x, ...p }
+            : x,
+        ),
+      );
+    };
 
     sock.on("map-snapshot", onSnapshot);
     sock.on("player-joined", onJoin);
@@ -680,6 +730,7 @@ export default function GameMapPage() {
     sock.on("phase-change", onPhase);
     sock.on("phase-tick", onTick);
     sock.on("vote-update", onVote);
+    sock.on("player-updated", onPlayerUpdated);
 
     return () => {
       sock.off("map-snapshot", onSnapshot);
@@ -690,9 +741,11 @@ export default function GameMapPage() {
       sock.off("phase-change", onPhase);
       sock.off("phase-tick", onTick);
       sock.off("vote-update", onVote);
+      sock.off("player-updated", onPlayerUpdated);
       disconnectSocket();
     };
-  }, [roomId, myName, myColor, myRole]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId]); // Only re-run if roomId changes (navigation). myName/myRole updates handled separately.
 
   // Clear "walking" indicator on other players after 200ms of no updates
   useEffect(() => {
@@ -759,8 +812,8 @@ export default function GameMapPage() {
   }, [timer]);
 
   const meta = ROLE_META[myRole] || ROLE_META.villager;
-  const aliveCount = 1 + players.filter((p) => p.isAlive !== false).length;
-  const totalPlayers = aliveCount; // demo
+  const aliveCount = (isAlive ? 1 : 0) + players.filter((p) => p.isAlive !== false).length;
+  const totalPlayers = dbTotalPlayers;
 
   return (
     <div

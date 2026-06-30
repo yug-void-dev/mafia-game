@@ -526,8 +526,15 @@ export default function AuthPage() {
       if (mode === "login") {
         const res = await apiSignIn(form.email, form.password);
         const token = res.data.token;
+
+        // Clear ALL stale user data from any previous session before saving new credentials
+        localStorage.removeItem("username");
+        localStorage.removeItem("mafia_username");
+        localStorage.removeItem("mafia_avatar");
+        localStorage.removeItem("userId");
+
         localStorage.setItem("token", token);
-        
+
         try {
           const payload = JSON.parse(atob(token.split('.')[1]));
           if (payload && payload._id) {
@@ -536,7 +543,7 @@ export default function AuthPage() {
         } catch (e) {
           console.error("Failed to decode token", e);
         }
-        
+
         navigate("/dashboard");
       } else {
         await apiSignUp(form.username, form.email, form.password, form.confirm);

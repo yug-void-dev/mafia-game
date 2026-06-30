@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
 import "./LoadingScreen.css";
 
+const BACKEND_BASE = "http://localhost:5000/api";
+
 export default function LoadingScreen() {
   const navigate = useNavigate();
   const { roomId } = useParams();
@@ -11,6 +13,7 @@ export default function LoadingScreen() {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
+    // Animation timers — purely cosmetic
     const timers = [
       setTimeout(() => setStep(1), 500),
       setTimeout(() => setStep(2), 1200),
@@ -20,24 +23,48 @@ export default function LoadingScreen() {
 
     const values = [0, 12, 24, 36, 58, 73, 91, 100];
     let i = 0;
-
     const interval = setInterval(() => {
-      if (i < values.length) {
-        setProgress(values[i]);
-        i++;
-      } else {
-        clearInterval(interval);
-      }
+      if (i < values.length) { setProgress(values[i]); i++; }
+      else clearInterval(interval);
     }, 300);
 
-    const nav = setTimeout(() => {
-      navigate(`/role-reveal/${roomId || ''}`);
-    }, 5000);
+    // Poll the backend until gameStarted is confirmed, then navigate.
+    // This replaces the old fixed 5-second blind timer.
+    let cancelled = false;
+    const MAX_WAIT_MS = 15000; // 15s hard timeout
+    const POLL_INTERVAL_MS = 800;
+    const startedAt = Date.now();
+
+    const pollGameStarted = async () => {
+      while (!cancelled) {
+        try {
+          const token = localStorage.getItem("token");
+          const res = await fetch(`${BACKEND_BASE}/room/rooms/${roomId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+          if (data?.room?.gameStarted) {
+            if (!cancelled) navigate(`/role-reveal/${roomId || ""}`);
+            return;
+          }
+        } catch (_) { /* network hiccup — keep polling */ }
+
+        // Hard timeout fallback
+        if (Date.now() - startedAt >= MAX_WAIT_MS) {
+          if (!cancelled) navigate(`/role-reveal/${roomId || ""}`);
+          return;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      }
+    };
+
+    pollGameStarted();
 
     return () => {
+      cancelled = true;
       timers.forEach(clearTimeout);
       clearInterval(interval);
-      clearTimeout(nav);
     };
   }, [navigate, roomId]);
 

@@ -68,6 +68,27 @@ export const initializeSocket = (server) => {
       });
     });
 
+    // Allow a player to push their resolved username/role after the API fetch
+    // completes, without triggering a full re-join of the room.
+    socket.on("update-player", (roomId, updateData) => {
+      if (mapRooms[roomId] && mapRooms[roomId].players[socket.id]) {
+        if (updateData.username != null) {
+          mapRooms[roomId].players[socket.id].username = updateData.username;
+        }
+        if (updateData.role != null) {
+          mapRooms[roomId].players[socket.id].role = updateData.role;
+        }
+        if (updateData.isAlive != null) {
+          mapRooms[roomId].players[socket.id].isAlive = updateData.isAlive;
+        }
+        // Broadcast updated player data to everyone else in the room
+        socket.to(roomId).emit("player-updated", {
+          id: socket.id,
+          ...mapRooms[roomId].players[socket.id],
+        });
+      }
+    });
+
     socket.on("send-chat", (roomId, messageData) => {
       io.to(roomId).emit("receive-chat", { id: socket.id, ...messageData });
     });
