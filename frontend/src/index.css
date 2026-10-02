@@ -400,11 +400,16 @@ html, body, #root {
   box-shadow: 0 0 8px rgba(200,0,30,0.6);
 }
 
-/* ── Rank badge ─────────────────────────────────────── */
-.rank-bronze  { color: #cd7f32; border-color: #cd7f32; }
-.rank-silver  { color: #aaa9ad; border-color: #aaa9ad; }
-.rank-gold    { color: #ffd700; border-color: #ffd700; }
-.rank-diamond { color: #a8d8f0; border-color: #a8d8f0; }
+/* ── Rank badges & League Glowing Accents ────────────── */
+.rank-bronze        { color: #cd7f32; border-color: #cd7f32; }
+.rank-silver        { color: #c0c0c0; border-color: #c0c0c0; }
+.rank-gold          { color: #ffd700; border-color: #ffd700; }
+.rank-platinum      { color: #00f0ff; border-color: #00f0ff; }
+.rank-diamond       { color: #c77dff; border-color: #c77dff; }
+.rank-master        { color: #ff0055; border-color: #ff0055; }
+.rank-elite-master  { color: #ff6b00; border-color: #ff6b00; }
+.rank-grand-master  { color: #a855f7; border-color: #a855f7; }
+.rank-legendary     { color: #ffe600; border-color: #ff0077; }
 
 /* ── Shimmer on gold text ───────────────────────────── */
 .shimmer-gold {

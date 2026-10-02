@@ -32,10 +32,9 @@ export default function App() {
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/create-room" element={<CreateRoomPage />} />
           <Route path="/join-room" element={<JoinRoomPage />} />
-          <Route path="/lobby/:roomId" element={<RoomLobbyPage />} />
-          <Route path="/store" element={<StorePage />} />
+          <Route path="/store" element={<Navigate to="/dashboard" replace />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

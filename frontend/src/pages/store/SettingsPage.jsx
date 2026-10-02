@@ -3,12 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Volume2, VolumeX, LogOut, Check, Sliders, ShieldAlert, Sparkles, Terminal, Activity } from 'lucide-react';
 import AudioManager from '../../services/audio';
 
-const RANK_CONFIG = [
-  { name: 'Bronze',  min:    0, max:  499, color: '#cd7f32', icon: '🥉' },
-  { name: 'Silver',  min:  500, max: 1499, color: '#aaa9ad', icon: '🥈' },
-  { name: 'Gold',    min: 1500, max: 2999, color: '#ffd700', icon: '🥇' },
-  { name: 'Diamond', min: 3000, max: 9999, color: '#a8d8f0', icon: '💎' },
-];
+import { getLeagueByTrophies } from '../../shared/leagueConfig.js';
+import LeagueEmblem from '../../components/common/LeagueEmblem.jsx';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState(() => AudioManager.settings);
@@ -25,7 +21,7 @@ export default function SettingsPage() {
   }, []);
 
   const trophies = 820;
-  const currentRank = RANK_CONFIG.find(r => trophies >= r.min && trophies <= r.max) || RANK_CONFIG[0];
+  const currentRank = getLeagueByTrophies(trophies);
 
   const handleToggleMusic = () => {
     const updated = { ...settings, musicEnabled: !settings.musicEnabled };
@@ -165,8 +161,8 @@ export default function SettingsPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{
               width: 50, height: 50, borderRadius: '50%',
-              border: `2px solid ${currentRank.color}`,
-              boxShadow: `0 0 16px ${currentRank.color}55`,
+              border: `2px solid ${currentRank.primaryColor}`,
+              boxShadow: `0 0 16px ${currentRank.glowColor}`,
               background: 'linear-gradient(135deg,#1c0a22,#0a030c)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 24, overflow: 'hidden',
@@ -198,8 +194,8 @@ export default function SettingsPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: 9 }}>RANK TIER</span>
-              <span style={{ color: currentRank.color, fontWeight: 800, marginTop: 2 }}>
-                {currentRank.icon} {currentRank.name.toUpperCase()}
+              <span style={{ color: currentRank.primaryColor, fontWeight: 800, marginTop: 2 }}>
+                {currentRank.name.toUpperCase()}
               </span>
             </div>
           </div>

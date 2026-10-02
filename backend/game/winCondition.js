@@ -96,6 +96,7 @@ export const handleGameOver = async (roomId, roomState, io, winResult) => {
   }
 
   // Award user stats in DB (async, non-blocking)
+  const playerDeltas = {};
   try {
     for (const player of allPlayers) {
       if (!player.userId) continue;
@@ -104,16 +105,20 @@ export const handleGameOver = async (roomId, roomState, io, winResult) => {
         (winResult.winner === "MAFIA" && isMafia) ||
         (winResult.winner === "TOWN" && !isMafia);
 
-      const updateData = {
-        $inc: {
-          totalGamesPlayed: 1,
-          totalGamesWon: didWin ? 1 : 0,
-          coins: didWin ? 50 : 10,
-          trophies: didWin ? 25 : -10,
-        },
-      };
+      const trophyDelta = didWin ? 25 : -15;
+      playerDeltas[player.userId] = trophyDelta;
 
-      await User.findByIdAndUpdate(player.userId, updateData);
+      const userDoc = await User.findById(player.userId);
+      if (userDoc) {
+        userDoc.totalGamesPlayed = (userDoc.totalGamesPlayed || 0) + 1;
+        if (didWin) {
+          userDoc.totalGamesWon = (userDoc.totalGamesWon || 0) + 1;
+          userDoc.trophies = (userDoc.trophies || 0) + 25;
+        } else {
+          userDoc.trophies = Math.max(0, (userDoc.trophies || 0) - 15);
+        }
+        await userDoc.save();
+      }
     }
   } catch (userErr) {
     console.error(`[GameOver] Error updating user game stats:`, userErr);
@@ -123,7 +128,10 @@ export const handleGameOver = async (roomId, roomState, io, winResult) => {
   io.to(roomId).emit("game-over", {
     winner: winResult.winner,
     reason: winResult.reason,
-    players: allPlayers,
+    players: allPlayers.map(p => ({
+      ...p,
+      trophyDelta: playerDeltas[p.userId] !== undefined ? playerDeltas[p.userId] : 0,
+    })),
     day: roomState.day || 1,
   });
 

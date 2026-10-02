@@ -1,18 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getUserData } from '../services/userService.js';
-import Chat from "../components/chat/Chat";
-
-const RANK_CONFIG = [
-  { name: 'Bronze',  min:    0, max:  499, color: '#cd7f32', icon: '🥉' },
-  { name: 'Silver',  min:  500, max: 1499, color: '#aaa9ad', icon: '🥈' },
-  { name: 'Gold',    min: 1500, max: 2999, color: '#ffd700', icon: '🥇' },
-  { name: 'Diamond', min: 3000, max: 9999, color: '#a8d8f0', icon: '💎' },
-];
-
-function getRank(trophies) {
-  return RANK_CONFIG.find(r => trophies >= r.min && trophies <= r.max) || RANK_CONFIG[0];
-}
+import { getLeagueByTrophies } from './leagueConfig.js';
+import LeagueEmblem from '../components/common/LeagueEmblem.jsx';
 
 // Helper: is this value a renderable image source (server URL or base64)?
 const isImageSrc = (val) =>
@@ -87,13 +77,11 @@ export default function HUD() {
   const fileRef = useRef(null);
 
   const trophies = userData?.trophies !== undefined ? userData.trophies : 0;
-  const cash = userData?.cash !== undefined ? userData.cash : 0;
-  const coins = userData?.coins !== undefined ? userData.coins : 0;
   const level = userData?.totalGamesPlayed !== undefined ? (Math.floor(userData.totalGamesPlayed / 3) + 1) : 1;
   const xp = userData?.totalGamesPlayed !== undefined ? ((userData.totalGamesPlayed % 3) * 100) : 0;
   const xpNext = 500;
 
-  const rank = getRank(trophies);
+  const league = getLeagueByTrophies(trophies);
   const xpPct = Math.round((xp / xpNext) * 100);
 
   const handleAvatarChange = useCallback((e) => {
@@ -116,10 +104,10 @@ export default function HUD() {
       position: 'absolute', top: 0, left: 0, right: 0,
       height: 72, zIndex: 30,
       display: 'flex', alignItems: 'center',
-      padding: '0 16px',
-      background: 'linear-gradient(180deg,rgba(2,1,7,0.95) 0%,rgba(4,2,10,0.7) 80%,transparent 100%)',
-      borderBottom: '1px solid rgba(80,30,50,0.25)',
-      gap: 12,
+      padding: '0 20px',
+      background: 'linear-gradient(180deg,rgba(2,1,7,0.96) 0%,rgba(4,2,10,0.8) 80%,transparent 100%)',
+      borderBottom: '1px solid rgba(80,30,50,0.3)',
+      gap: 16,
     }}>
       {/* Back button (non-home pages) */}
       {!isHome && (
@@ -144,8 +132,8 @@ export default function HUD() {
       }} onClick={() => navigate('/profile')}>
         <div style={{
           width: '100%', height: '100%', borderRadius: '50%',
-          border: `2px solid ${rank.color}`,
-          boxShadow: `0 0 14px ${rank.color}55`,
+          border: `2px solid ${league.primaryColor}`,
+          boxShadow: `0 0 14px ${league.glowColor}`,
           overflow: 'hidden',
           background: 'linear-gradient(135deg,#1a0a18,#0d0518)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -171,16 +159,16 @@ export default function HUD() {
       </div>
 
       {/* Name + XP bar */}
-      <div style={{ display:'flex', flexDirection:'column', gap: 3, minWidth: 0 }}>
+      <div style={{ display:'flex', flexDirection:'column', gap: 3, minWidth: 0, cursor: 'pointer' }} onClick={() => navigate('/profile')}>
         <span style={{
           fontFamily: 'var(--font-display)', fontSize: 13,
-          color: '#e8d0d8', letterSpacing: '0.08em',
+          color: '#f0e6ea', letterSpacing: '0.08em',
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          maxWidth: 100,
+          maxWidth: 120, fontWeight: 700,
         }}>{username}</span>
         <div style={{ display:'flex', alignItems:'center', gap: 5 }}>
-          <span style={{ fontSize: 9, color: rank.color, letterSpacing:'0.06em', fontWeight:700 }}>
-            {rank.icon} {rank.name.toUpperCase()}
+          <span style={{ fontSize: 9.5, color: league.primaryColor, letterSpacing:'0.06em', fontWeight: 800 }}>
+            {league.name.toUpperCase()} LEAGUE
           </span>
         </div>
         {/* XP bar */}
@@ -192,7 +180,7 @@ export default function HUD() {
         }}>
           <div style={{
             width:`${xpPct}%`, height:'100%',
-            background: 'linear-gradient(90deg,#5a1a80,#9040d0)',
+            background: `linear-gradient(90deg, #5a1a80, ${league.primaryColor})`,
             borderRadius: 3,
             animation: 'xp-fill 1.2s ease',
           }}/>
@@ -201,43 +189,67 @@ export default function HUD() {
 
       <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }}/>
 
-      {/* Trophies */}
-      <HudStat icon="🏆" value={trophies} color="#ffd700" />
-      <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }}/>
-
-      {/* Cash */}
-      <HudStat icon="💵" value={`$${cash.toLocaleString()}`} color="#8fcc55" onPlusClick={() => navigate('/store')} />
-      {/* Coins */}
-      <HudStat icon="🪙" value={coins} color="#f0c848" onPlusClick={() => navigate('/store')} />
-
-      {/* League Badge (Gamish and Stylish) */}
+      {/* Trophies Highlight */}
       <div
         onClick={() => navigate('/leaderboard')}
         style={{
-          display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px',
-          background: 'linear-gradient(135deg, rgba(30,10,20,0.8) 0%, rgba(10,5,15,0.95) 100%)',
-          border: `1.5px solid ${rank.color}`,
-          borderRadius: 20,
-          boxShadow: `0 0 12px ${rank.color}44, inset 0 0 8px ${rank.color}22`,
-          cursor: 'pointer', flexShrink: 0,
-          transition: 'all 0.2s',
+          display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0,
+          background: 'rgba(255,215,0,0.08)',
+          border: '1px solid rgba(255,215,0,0.25)',
+          padding: '6px 14px', borderRadius: 20,
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
         }}
         onMouseEnter={e => {
-          e.currentTarget.style.transform = 'scale(1.05)';
-          e.currentTarget.style.boxShadow = `0 0 18px ${rank.color}77, inset 0 0 10px ${rank.color}33`;
+          e.currentTarget.style.background = 'rgba(255,215,0,0.15)';
+          e.currentTarget.style.borderColor = 'rgba(255,215,0,0.5)';
+          e.currentTarget.style.boxShadow = '0 0 15px rgba(255,215,0,0.3)';
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'rgba(255,215,0,0.08)';
+          e.currentTarget.style.borderColor = 'rgba(255,215,0,0.25)';
+          e.currentTarget.style.boxShadow = 'none';
+        }}
+      >
+        <span style={{ fontSize: 18, filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.6))' }}>🏆</span>
+        <span style={{
+          fontSize: 15, fontWeight: 900, color: '#ffd700',
+          textShadow: '0 0 10px rgba(255,215,0,0.4)',
+          fontFamily: 'var(--font-display)', letterSpacing: '0.05em',
+        }}>
+          {trophies.toLocaleString()}
+        </span>
+      </div>
+
+      {/* Dynamic League Badge & Crest */}
+      <div
+        onClick={() => navigate('/leaderboard')}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8, padding: '4px 14px',
+          background: league.bgGradient,
+          border: `1.5px solid ${league.primaryColor}`,
+          borderRadius: 24,
+          boxShadow: `0 0 16px ${league.glowColor}, inset 0 0 10px ${league.glowColor}`,
+          cursor: 'pointer', flexShrink: 0,
+          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.transform = 'scale(1.06)';
+          e.currentTarget.style.boxShadow = `0 0 24px ${league.glowColor}, inset 0 0 14px ${league.glowColor}`;
         }}
         onMouseLeave={e => {
           e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.boxShadow = `0 0 12px ${rank.color}44, inset 0 0 8px ${rank.color}22`;
+          e.currentTarget.style.boxShadow = `0 0 16px ${league.glowColor}, inset 0 0 10px ${league.glowColor}`;
         }}
       >
-        <span style={{ fontSize: 13 }}>{rank.icon}</span>
+        <LeagueEmblem tierId={league.id} size="xs" animate={true} />
         <span style={{
-          fontSize: 9.5, fontWeight: 900, color: rank.color,
-          fontFamily: 'var(--font-display)', letterSpacing: '0.08em',
-          textShadow: `0 0 8px ${rank.color}aa`,
+          fontSize: 11, fontWeight: 900, color: league.lightColor,
+          fontFamily: 'var(--font-display)', letterSpacing: '0.1em',
+          textShadow: `0 0 10px ${league.glowColor}`,
+          textTransform: 'uppercase',
         }}>
-          {rank.name.toUpperCase()}
+          {league.name}
         </span>
       </div>
 
@@ -251,7 +263,7 @@ export default function HUD() {
           border: '1px solid rgba(80,50,110,0.35)',
           borderRadius: 8,
           color: '#8878aa',
-          width: 36, height: 36,
+          width: 38, height: 38,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer', transition: 'all 0.2s',
         }}
@@ -260,48 +272,6 @@ export default function HUD() {
       >
         <GearSVG size={18} />
       </button>
-    </div>
-  );
-}
-
-function HudStat({ icon, value, color, onPlusClick }) {
-  return (
-    <div style={{ display:'flex', alignItems:'center', gap: 5, flexShrink: 0 }}>
-      <span style={{ fontSize: 16 }}>{icon}</span>
-      <span style={{
-        fontSize: 14, fontWeight: 700, color,
-        textShadow: `0 0 10px ${color}55`,
-        fontFamily: 'var(--font-display)',
-      }}>{value}</span>
-      {onPlusClick && (
-        <button
-          onClick={onPlusClick}
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: '1.2px solid rgba(255,255,255,0.18)',
-            borderRadius: '50%',
-            color: '#fff',
-            width: 15, height: 15,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 9, fontWeight: 900, cursor: 'pointer',
-            marginLeft: 3, transition: 'all 0.2s',
-            lineHeight: 1,
-            padding: 0,
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'rgba(255,30,50,0.2)';
-            e.currentTarget.style.borderColor = '#ff3344';
-            e.currentTarget.style.boxShadow = '0 0 8px rgba(255,30,50,0.5)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        >
-          +
-        </button>
-      )}
     </div>
   );
 }

@@ -2,12 +2,12 @@
  * GameOverScreen.jsx
  * ─────────────────────────────────────────────────────────────────
  * Full-screen Game Over overlay with dynamic confetti/particles,
- * glowing victory/defeat medallions, animated standings, and gamified CTA.
+ * glowing victory/defeat medallions, trophy delta pill, and standings.
  */
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Skull, Users, Crown, X, LogOut, Sparkles } from "lucide-react";
+import { Trophy, Skull, Users, LogOut, ArrowUp, ArrowDown } from "lucide-react";
 import FloatingParticles from "../common/FloatingParticles";
 
 const ROLE_EMOJI = { mafia: "🔪", police: "🛡️", doctor: "💊", villager: "👤" };
@@ -24,6 +24,8 @@ export default function GameOverScreen({ data, myId, myRole, onLeave }) {
   const didWin =
     (winner === "MAFIA" && isMafia) || (winner === "TOWN" && !isMafia);
   const isDraw = winner === "DRAW";
+
+  const trophyDelta = didWin ? "+25" : isDraw ? "+0" : "-15";
 
   const winCfg = didWin
     ? {
@@ -154,6 +156,28 @@ export default function GameOverScreen({ data, myId, myRole, onLeave }) {
             }}
           >
             {winCfg.label}
+          </div>
+
+          {/* Trophy Rating Adjustment Pill */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '6px 18px',
+            borderRadius: 20,
+            background: didWin ? 'rgba(34, 197, 94, 0.15)' : isDraw ? 'rgba(148, 163, 184, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+            border: `1.5px solid ${didWin ? '#22c55e' : isDraw ? '#94a3b8' : '#ef4444'}`,
+            boxShadow: `0 0 15px ${didWin ? 'rgba(34,197,94,0.4)' : isDraw ? 'rgba(148,163,184,0.2)' : 'rgba(239,68,68,0.4)'}`,
+            marginBottom: 14,
+          }}>
+            {didWin ? <ArrowUp size={16} color="#22c55e" /> : !isDraw ? <ArrowDown size={16} color="#ef4444" /> : null}
+            <span style={{
+              fontSize: 14, fontWeight: 900,
+              color: didWin ? '#4ade80' : isDraw ? '#cbd5e1' : '#f87171',
+              letterSpacing: '0.06em',
+            }}>
+              {trophyDelta} TROPHIES {didWin ? 'EARNED' : isDraw ? 'NO CHANGE' : 'DEDUCTED'}
+            </span>
           </div>
 
           {/* Global Winner */}

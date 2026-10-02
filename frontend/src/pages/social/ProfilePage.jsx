@@ -2,9 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import axios from "axios";
 import { motion, AnimatePresence } from 'framer-motion';
 import { getUserData } from '../../services/userService.js';
+import { getLeagueByTrophies, LEAGUE_TIERS } from '../../shared/leagueConfig.js';
+import LeagueEmblem from '../../components/common/LeagueEmblem.jsx';
 import {
-  ShieldAlert, Upload, Trophy, Star, Target, Shield,
-  Smile, Swords, Zap, CheckCircle2, AlertTriangle, Eye
+  Upload, Trophy, Star, Target, Shield,
+  Swords, CheckCircle2, Eye, Flame, Award, Zap
 } from 'lucide-react';
 
 const DEFAULT_AVATARS = [
@@ -77,18 +79,6 @@ const ACHIEVEMENTS_CONFIG = [
   },
 ];
 
-const RANK_CONFIG = [
-  { name: 'Bronze',   min:    0, max:  499,  color: '#cd7f32', icon: '🥉', nextName: 'Silver'  },
-  { name: 'Silver',   min:  500, max: 1499,  color: '#aaa9ad', icon: '🥈', nextName: 'Gold'    },
-  { name: 'Gold',     min: 1500, max: 2999,  color: '#ffd700', icon: '🥇', nextName: 'Diamond' },
-  { name: 'Diamond',  min: 3000, max: 4999,  color: '#a8d8f0', icon: '💎', nextName: 'Master'  },
-  { name: 'Master',   min: 5000, max: 99999, color: '#ff4455', icon: '👑', nextName: 'Master'  },
-];
-
-function getRank(trophies) {
-  return RANK_CONFIG.find(r => trophies >= r.min && trophies <= r.max) || RANK_CONFIG[0];
-}
-
 const isImageSrc = (val) =>
   val && (val.startsWith('http://') || val.startsWith('https://') || val.startsWith('data:image/'));
 
@@ -124,7 +114,7 @@ export default function ProfilePage() {
   const stats = {
     matchesPlayed: profile?.totalGamesPlayed || 0,
     wins: profile?.totalGamesWon || 0,
-    losses: (profile?.totalGamesPlayed || 0) - (profile?.totalGamesWon || 0),
+    losses: Math.max(0, (profile?.totalGamesPlayed || 0) - (profile?.totalGamesWon || 0)),
     mafiaKills: profile?.mafiaKills || 0,
     trophies: profile?.trophies || 0,
     favRoleDesc: getFavRoleName(profile?.roleGetMaximumTime),
@@ -182,14 +172,14 @@ export default function ProfilePage() {
       ? Math.round((stats.wins / stats.matchesPlayed) * 100)
       : 0;
 
-  const currentRank  = getRank(stats.trophies);
-  const currentRankName = currentRank.name;
-  const nextRankName  = currentRank.nextName;
-  const rankMin       = currentRank.min;
-  const rankMax       = currentRank.max;
-  const rankProgress  = Math.max(0, stats.trophies - rankMin);
-  const rankTotal     = rankMax - rankMin || 1;
-  const progressPct   = Math.min(100, Math.round((rankProgress / rankTotal) * 100));
+  const currentLeague = getLeagueByTrophies(stats.trophies);
+  const nextLeague = LEAGUE_TIERS.find(t => t.min > currentLeague.max) || currentLeague;
+  const isMaxTier = currentLeague.id === 'legendary';
+
+  const rankProgress = Math.max(0, stats.trophies - currentLeague.min);
+  const rankTotal = isMaxTier ? 1 : Math.max(1, currentLeague.max - currentLeague.min + 1);
+  const progressPct = isMaxTier ? 100 : Math.min(100, Math.round((rankProgress / rankTotal) * 100));
+  const trophiesNeeded = isMaxTier ? 0 : Math.max(0, (currentLeague.max + 1) - stats.trophies);
 
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0];
@@ -251,6 +241,7 @@ export default function ProfilePage() {
       padding: '24px 40px 100px 40px',
       color: '#fff',
       display: 'flex', flexDirection: 'column', gap: 24,
+      boxSizing: 'border-box',
     }}>
       {/* Toast */}
       <AnimatePresence>
@@ -275,20 +266,172 @@ export default function ProfilePage() {
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}
       >
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, letterSpacing: '0.12em', color: '#ff4455' }}>
-          HITMAN DOSSIER
+          HITMAN PROFILE & LEAGUE
         </h1>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Manage your Identity, inspect your contract stats, and view unlocked badges</span>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          Inspect your competitive standings, high-tier league crest, match history, and unlocked achievements
+        </span>
       </motion.div>
 
-      {/* Grid Layout: Left Avatar & Name Edit, Right Stats & Badges */}
+      {/* ── TOP HERO BANNER: BIG HIGHLIGHTED LEAGUE CREST & STANDINGS ── */}
+      <motion.div
+        initial={{ scale: 0.98, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        className="glass-panel"
+        style={{
+          width: '100%',
+          minHeight: 200,
+          flexShrink: 0,
+          padding: '24px 32px',
+          background: `linear-gradient(135deg, rgba(24, 6, 18, 0.95) 0%, rgba(10, 3, 10, 0.98) 100%)`,
+          border: `2px solid ${currentLeague.primaryColor}88`,
+          borderRadius: 20,
+          boxShadow: `0 10px 40px ${currentLeague.glowColor}, inset 0 0 30px rgba(0,0,0,0.8)`,
+          display: 'grid',
+          gridTemplateColumns: '170px 1fr 280px',
+          alignItems: 'center',
+          gap: 28,
+          position: 'relative',
+        }}
+      >
+        {/* 1. Giant Animated League Emblem */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, flexShrink: 0 }}>
+          <LeagueEmblem tierId={currentLeague.id} size="xl" animate={true} />
+          <span style={{
+            fontSize: 10,
+            letterSpacing: '0.16em',
+            fontWeight: 900,
+            color: currentLeague.primaryColor,
+            textTransform: 'uppercase',
+            textShadow: `0 0 8px ${currentLeague.glowColor}`,
+          }}>
+            OFFICIAL CREST
+          </span>
+        </div>
+
+        {/* 2. League Info & Progress Details */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{
+              background: currentLeague.primaryColor,
+              color: '#000',
+              fontWeight: 900,
+              fontSize: 11,
+              padding: '3px 12px',
+              borderRadius: 20,
+              letterSpacing: '0.08em',
+            }}>
+              CURRENT TIER
+            </span>
+            <span style={{ fontSize: 13, color: '#f0d0dc', fontWeight: 600 }}>
+              {currentLeague.range}
+            </span>
+          </div>
+
+          <div>
+            <h2 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 32,
+              fontWeight: 900,
+              letterSpacing: '0.08em',
+              color: currentLeague.lightColor,
+              textShadow: `0 0 20px ${currentLeague.glowColor}`,
+              lineHeight: 1.15,
+              margin: '2px 0',
+            }}>
+              {currentLeague.name.toUpperCase()} LEAGUE
+            </h2>
+            <span style={{ fontSize: 13.5, color: '#f0d0dc', fontWeight: 600, letterSpacing: '0.04em' }}>
+              {currentLeague.title}
+            </span>
+          </div>
+
+          {/* Trophy & Progress bar */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 13 }}>
+              <span style={{ color: '#ffd700', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Trophy size={16} color="#ffd700" /> {stats.trophies.toLocaleString()} Trophies
+              </span>
+              {!isMaxTier ? (
+                <span style={{ color: 'var(--text-muted)', fontSize: 11.5 }}>
+                  Next Tier: <strong style={{ color: nextLeague.primaryColor }}>{nextLeague.name}</strong> ({currentLeague.max + 1} 🏆)
+                </span>
+              ) : (
+                <span style={{ color: '#ffe600', fontSize: 11.5, fontWeight: 800 }}>
+                  MAXIMUM TIER ACHIEVED 👑
+                </span>
+              )}
+            </div>
+
+            <div style={{
+              width: '100%', height: 10,
+              background: 'rgba(255,255,255,0.06)',
+              borderRadius: 6,
+              overflow: 'hidden',
+              border: '1px solid rgba(255,255,255,0.1)',
+            }}>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPct}%` }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
+                style={{
+                  height: '100%',
+                  background: `linear-gradient(90deg, #5a1a80, ${currentLeague.primaryColor})`,
+                  borderRadius: 6,
+                  boxShadow: `0 0 14px ${currentLeague.glowColor}`,
+                }}
+              />
+            </div>
+
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              {!isMaxTier
+                ? `${trophiesNeeded} more trophies required to reach ${nextLeague.name} League.`
+                : 'You sit at the apex of the underground syndicate hierarchy.'}
+            </span>
+          </div>
+        </div>
+
+        {/* 3. Quick Highlights Box */}
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 10,
+          background: 'rgba(0,0,0,0.5)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 14,
+          padding: '16px 20px',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>TOTAL MATCHES</span>
+            <span style={{ fontSize: 20, fontWeight: 900, color: '#fff', fontFamily: 'var(--font-display)' }}>
+              {stats.matchesPlayed}
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>GAMES WON</span>
+            <span style={{ fontSize: 20, fontWeight: 900, color: '#5ad15a', fontFamily: 'var(--font-display)' }}>
+              {stats.wins}
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>WIN RATE</span>
+            <span style={{ fontSize: 20, fontWeight: 900, color: '#ffd700', fontFamily: 'var(--font-display)' }}>
+              {winRate}%
+            </span>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Grid Layout: Left Avatar & Name Edit, Right Match Performance & Achievements */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: '340px 1fr',
         gap: 32,
         alignItems: 'start',
+        flexShrink: 0,
       }}>
         {/* LEFT COLUMN: Identity Customization */}
         <motion.div
@@ -311,8 +454,8 @@ export default function ProfilePage() {
             <div style={{
               width: 100, height: 100, borderRadius: '50%',
               background: 'rgba(255,255,255,0.03)',
-              border: '2.5px solid #ff3344',
-              boxShadow: '0 0 25px rgba(255,30,50,0.3)',
+              border: `2.5px solid ${currentLeague.primaryColor}`,
+              boxShadow: `0 0 25px ${currentLeague.glowColor}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 48, overflow: 'hidden', position: 'relative'
             }}>
@@ -391,10 +534,10 @@ export default function ProfilePage() {
           </button>
         </motion.div>
 
-        {/* RIGHT COLUMN: Stats Cards & Badges */}
+        {/* RIGHT COLUMN: Detailed Stats Cards & Achievements */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-          {/* TOP STATS CARDS GRID */}
+          {/* STATS CARDS GRID */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
             {/* Matches & Win Rate */}
             <motion.div
@@ -450,66 +593,30 @@ export default function ProfilePage() {
               </span>
             </motion.div>
 
-            {/* Rank Trophies */}
+            {/* Win Ratio */}
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
               className="glass-panel"
               style={{
-                padding: 20, display: 'flex', flexDirection: 'column', gap: 10,
+                padding: 20, display: 'flex', flexDirection: 'column', gap: 12,
                 background: 'rgba(10,5,15,0.85)',
                 border: '1.5px solid rgba(120,40,60,0.25)',
               }}
             >
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 13, letterSpacing: '0.08em', color: '#ff4455' }}>
-                LEAGUE STANDINGS
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 13, letterSpacing: '0.08em', color: '#ffd700' }}>
+                COMBAT EFFICIENCY
               </h3>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div style={{
-                  width: 60, height: 60, borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.02)',
-                  border: `2px solid ${currentRank.color}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 28, boxShadow: `0 0 15px ${currentRank.color}40`,
-                }}>
-                  {currentRank.icon}
-                </div>
-                <div>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block' }}>CURRENT LEAGUE</span>
-                  <span style={{ fontSize: 20, fontWeight: 800, color: '#eee', letterSpacing: '0.05em' }}>
-                    {currentRankName.toUpperCase()}
-                  </span>
-                  <span style={{ fontSize: 11, color: '#f0c848', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                    <Trophy size={12} /> {stats.trophies} Trophies
-                  </span>
-                </div>
-              </div>
-
-              {/* Progress to next rank */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Next Rank: <strong>{nextRankName}</strong></span>
-                  <span style={{ color: '#ffd700', fontWeight: 600 }}>{stats.trophies} / {rankMax} 🏆</span>
-                </div>
-                <div style={{
-                  width: '100%', height: 8,
-                  background: 'rgba(255,255,255,0.05)',
-                  borderRadius: 4, overflow: 'hidden',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                }}>
-                  <div style={{
-                    width: `${progressPct}%`, height: '100%',
-                    background: 'linear-gradient(90deg, #8a78a8, #ffd700)',
-                    borderRadius: 4,
-                    boxShadow: '0 0 10px rgba(255,215,0,0.3)',
-                  }} />
-                </div>
-                <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>
-                  You need {rankMax - stats.trophies} more trophies to claim {nextRankName} rank.
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 900, color: '#5ad15a' }}>
+                  {winRate}%
                 </span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>VICTORY RATIO</span>
               </div>
+              <span style={{ fontSize: 10.5, color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8 }}>
+                Total Victories: <strong style={{ color: '#5ad15a' }}>{stats.wins} Games</strong>
+              </span>
             </motion.div>
           </div>
 
@@ -533,7 +640,7 @@ export default function ProfilePage() {
             </h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {ACHIEVEMENTS_CONFIG.map((ach, i) => {
+              {ACHIEVEMENTS_CONFIG.map((ach) => {
                 const IconComp = ach.icon;
                 const unlocked = (profile?.achievements || []).includes(ach.key);
                 return (
